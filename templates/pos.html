@@ -302,6 +302,12 @@ html,body{height:100%;overflow:hidden;background:#f0f2f5;}
     <button onclick="toggleTopPanel()" id="toggle-btn" style="width:100%;padding:3px;background:#f3f4f6;border:none;font-size:10px;color:#6b7280;cursor:pointer;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;gap:4px;">
       <span id="toggle-icon">▲</span> <span id="toggle-text">Hide Options</span>
     </button>
+    <div id="edit-order-banner" style="display:none;align-items:center;justify-content:space-between;gap:6px;padding:7px 10px;background:#fff7ed;border-bottom:1.5px solid #fb923c;font-size:12px;font-weight:700;color:#c2410c;">
+      <span id="edit-order-label">Editing order</span>
+      <a onclick="newOrder()" style="cursor:pointer;font-size:11px;font-weight:700;color:#9a3412;text-decoration:underline;">Done</a>
+    </div>
+    <div id="edit-existing-items" style="display:none;"></div>
+    <div id="new-items-label" style="display:none;padding:6px 10px 2px;font-size:11px;font-weight:700;color:#6b7280;">New items to add</div>
     <div class="cwrap" id="pos-cart"><div class="cempty">No items added yet</div></div>
 
     <div class="twrap">
@@ -317,8 +323,8 @@ html,body{height:100%;overflow:hidden;background:#f0f2f5;}
     <div class="abtns">
       <button class="ab ab-calc"   onclick="openCalc()"><iconify-icon icon="solar:calculator-minimalistic-linear"></iconify-icon> Calculator</button>
       <button class="ab ab-cancel" onclick="newOrder()"><iconify-icon icon="solar:close-circle-linear"></iconify-icon> Cancel</button>
-      <button class="ab ab-quick"  onclick="placeOrder(true)"><iconify-icon icon="solar:bolt-linear"></iconify-icon> Quick Order</button>
-      <button class="ab ab-place"  onclick="placeOrder(false)"><iconify-icon icon="solar:check-circle-linear"></iconify-icon> Place Order</button>
+      <button class="ab ab-quick"  id="btn-quick-order" onclick="placeOrder(true)"><iconify-icon icon="solar:bolt-linear"></iconify-icon> Quick Order</button>
+      <button class="ab ab-place"  id="btn-place-order" onclick="placeOrder(false)"><iconify-icon icon="solar:check-circle-linear"></iconify-icon> Place Order</button>
     </div>
   </div>
 
@@ -672,6 +678,7 @@ let cart=[], payMethod='cash', imItem=null, imSz_='full', imQty=1, calcStr='0';
 let _bc={}, _firstLoad=true, _posOrders={};
 let orderMode='dine_in', platformSrc='pos', takeawayNo=null;
 let _masterKeyCallback=null, _splitOrderId=null;
+let _editOrderId=null, _editOrderLabel='', _editOrderItems=[];
 
 // ════════════════════════════════════════
 // PAYMENT METHOD DISPLAY — so staff can see at a glance HOW an order
@@ -750,7 +757,82 @@ function newOrder(){
   const ts=document.getElementById('table-select'); if(ts) ts.selectedIndex=0;
   const pr=document.getElementById('platform-ref'); if(pr) pr.value='';
   takeawayNo=null;
+  exitEditOrderMode();
   renderCart();
+}
+
+// ════════════════════════════════════════
+// ADD ITEMS TO AN EXISTING (not-yet-completed) ORDER
+// ════════════════════════════════════════
+function startAddItems(id, label){
+  cart=[];
+  _editOrderId=id;
+  _editOrderLabel=label||('Order #'+id);
+  _editOrderItems=(_posOrders[id]&&_posOrders[id].items)?_posOrders[id].items.slice():[];
+  document.getElementById('edit-order-banner').style.display='flex';
+  document.getElementById('edit-order-label').textContent='Editing '+_editOrderLabel;
+  document.getElementById('btn-place-order').innerHTML='<iconify-icon icon="solar:check-circle-linear"></iconify-icon> Add to Order';
+  document.getElementById('btn-quick-order').style.display='none';
+  document.getElementById('new-items-label').style.display='block';
+  renderExistingItems();
+  renderCart();
+  closeSP();
+  openCartDrawer();
+}
+function exitEditOrderMode(){
+  _editOrderId=null; _editOrderLabel=''; _editOrderItems=[];
+  document.getElementById('edit-order-banner').style.display='none';
+  document.getElementById('new-items-label').style.display='none';
+  renderExistingItems();
+  document.getElementById('btn-place-order').innerHTML='<iconify-icon icon="solar:check-circle-linear"></iconify-icon> Place Order';
+  document.getElementById('btn-quick-order').style.display='';
+}
+
+function renderExistingItems(){
+  const w=document.getElementById('edit-existing-items');
+  if(!_editOrderId || !_editOrderItems.length){ w.style.display='none'; w.innerHTML=''; return; }
+  w.style.display='block';
+  w.innerHTML='<div style="padding:6px 10px 2px;font-size:11px;font-weight:700;color:#6b7280;">Items already in this order</div>' +
+    _editOrderItems.map(i=>`
+    <div class="citem" style="background:#f3f4f6;">
+      <div style="display:flex;justify-content:space-between;gap:6px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1f2937;">${i.name} <span style="font-size:11px;color:#9ca3af;font-weight:400;">(${i.size})</span></div>
+          ${i.addons&&i.addons.length?`<div style="font-size:11px;color:#C65A1E;margin-top:1px;">+ ${i.addons.map(a=>a.name).join(', ')}</div>`:''}
+          <div style="font-size:11px;color:#6b7280;margin-top:3px;">RM ${i.unit_price.toFixed(2)} × ${i.qty} = <b style="color:#16a34a;">RM ${i.line_total.toFixed(2)}</b></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button onclick="existQtyChange(${i.id},-1)" style="width:22px;height:22px;border-radius:50%;border:1px solid #e5e7eb;background:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">−</button>
+            <span style="font-size:13px;font-weight:700;min-width:18px;text-align:center;">${i.qty}</span>
+            <button onclick="existQtyChange(${i.id},1)"  style="width:22px;height:22px;border-radius:50%;border:1px solid #e5e7eb;background:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
+          </div>
+          <button onclick="existRemove(${i.id})" style="font-size:10px;color:#ef4444;background:none;border:none;cursor:pointer;padding:0;">Remove</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function existQtyChange(itemId, delta){
+  const it=_editOrderItems.find(x=>x.id===itemId);
+  if(!it) return;
+  const newQty=it.qty+delta;
+  if(delta<0 && newQty<=0){
+    requireMasterKey('Remove "'+it.name+'" from order?', ()=>saveExistingItemQty(itemId,0));
+    return;
+  }
+  saveExistingItemQty(itemId, newQty);
+}
+function existRemove(itemId){
+  const it=_editOrderItems.find(x=>x.id===itemId);
+  requireMasterKey('Remove "'+(it?it.name:'item')+'" from order?', ()=>saveExistingItemQty(itemId,0));
+}
+async function saveExistingItemQty(itemId, qty){
+  const res=await fetch('/api/pos/order/'+_editOrderId+'/item/'+itemId+'/qty',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({qty})});
+  const d=await res.json();
+  if(d.error){ alert(d.error); return; }
+  _editOrderItems=d.items;
+  renderExistingItems();
+  loadBadges();
 }
 
 // ════════════════════════════════════════
@@ -892,12 +974,35 @@ document.getElementById('svc').addEventListener('input',renderCart);
 // PLACE ORDER  (no bill yet — bill only on Complete)
 // ════════════════════════════════════════
 async function placeOrder(quick){
-  if(!cart.length){ alert('Add items first'); return; }
+  if(!cart.length){
+    // Editing an order: qty/remove changes on existing lines already save
+    // themselves instantly, so an empty "new items" cart here just means
+    // there's nothing new to add — close edit mode instead of erroring.
+    if(_editOrderId){ newOrder(); return; }
+    alert('Add items first'); return;
+  }
+  const cartPayload = cart.map(c=>({
+    id:c.id||null, size:c.size, qty:c.qty, addons:c.addons||[], notes:c.notes||'',
+    open_item:c.open_item||false, name:c.name, price:c.price
+  }));
+
+  // Editing an existing (not-yet-completed) order: append items, but stay in
+  // edit mode so staff can keep adjusting existing lines too. "Done" exits.
+  if(_editOrderId){
+    const res=await fetch('/api/pos/order/'+_editOrderId+'/add-items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cart:cartPayload})});
+    const d=await res.json();
+    if(d.error){ alert(d.error||'Error'); return; }
+    cart=[];
+    _editOrderItems=d.items;
+    renderCart();
+    renderExistingItems();
+    loadBadges();
+    bellCart();
+    return;
+  }
+
   const payload={
-    cart: cart.map(c=>({
-      id:c.id||null, size:c.size, qty:c.qty, addons:c.addons||[], notes:c.notes||'',
-      open_item:c.open_item||false, name:c.name, price:c.price
-    })),
+    cart: cartPayload,
     order_type: orderMode,
     source: platformSrc,
     table_number: orderMode==='dine_in'?(document.getElementById('table-select').value||null):null,
@@ -995,6 +1100,7 @@ async function renderPanel(type){
               <span style="font-size:11px;font-weight:700;color:#16a34a;margin-left:auto;">RM ${o.total.toFixed(2)}</span>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+              <button onclick="startAddItems(${o.id}, '${(o.token_no||o.order_no).replace(/'/g,"")}${o.table_number?' · Table '+o.table_number:''}')" class="ob ob-split"><iconify-icon icon="solar:add-circle-linear"></iconify-icon> Add Items</button>
               <button onclick="completeOrder(${o.id}, ${o.total})" class="ob ob-complete"><iconify-icon icon="solar:check-circle-linear"></iconify-icon> Complete</button>
               <button onclick="_posOrders[${o.id}]&&openSplitModal(${o.id},_posOrders[${o.id}].items)" class="ob ob-split"><iconify-icon icon="solar:chart-2-linear"></iconify-icon> Split</button>
               <button onclick="deleteOrder(${o.id})" class="ob ob-delete"><iconify-icon icon="solar:trash-bin-2-linear"></iconify-icon> Delete</button>

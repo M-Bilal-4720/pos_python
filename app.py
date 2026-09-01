@@ -469,7 +469,7 @@ def serialize_order(o):
         "token_no":o.token_no or "","takeaway_no":o.takeaway_no,
         "created_at":o.created_at.strftime("%Y-%m-%d %H:%M"),
         "created_at_iso":o.created_at.isoformat(),
-        "items":[{"name":i.name,"size":i.size,"qty":i.qty,"unit_price":i.unit_price,
+        "items":[{"id":i.id,"name":i.name,"size":i.size,"qty":i.qty,"unit_price":i.unit_price,
                   "menu_item_id":i.menu_item_id,"addons":i.addons,
                   "addons_total":i.addons_total,"line_total":i.line_total,
                   "notes":i.notes} for i in o.items],
@@ -1395,6 +1395,61 @@ def api_pos_create_order():
         t = RestaurantTable.query.filter_by(number=int(order.table_number)).first()
         if t: t.status = "occupied"
     db.session.add(order)
+    db.session.commit()
+    return jsonify(serialize_order(order))
+
+
+def recompute_order_totals(order):
+    """Recompute subtotal/tax/total from the order's current item rows.
+    Called after any add/qty-change/remove on an order that isn't final yet
+    (service_charge/discount_amount stay as-is — those are only set at
+    payment time via complete-payment)."""
+    settings = get_settings()
+    tax_rate = float(settings.get("tax_rate","6")) / 100
+    subtotal = sum((oi.unit_price + oi.addons_total) * oi.qty for oi in order.items)
+    order.subtotal = round(subtotal, 2)
+    order.tax      = round(order.subtotal * tax_rate, 2)
+    order.total    = round(order.subtotal + order.tax + (order.service_charge or 0) - (order.discount_amount or 0), 2)
+
+def _editable_order_or_error(oid):
+    """Returns (order, None) if the order can still be modified, else (None, (response, status))."""
+    order = db.get_or_404(Order, oid)
+    if order.status in ("completed", "cancelled"):
+        return None, (jsonify({"error":"This order is already "+order.status+" and can't be edited"}), 400)
+    return order, None
+
+@app.route("/api/pos/order/<int:oid>/add-items", methods=["POST"])
+def api_pos_add_items(oid):
+    """Add more items to an order that hasn't been completed/cancelled yet."""
+    if not api_staff_check(): return jsonify({"error":"Unauthorized"}), 401
+    order, err = _editable_order_or_error(oid)
+    if err: return err
+    data = request.get_json(silent=True) or {}
+    cart = data.get("cart", [])
+    if not cart:
+        return jsonify({"error":"Cart is empty"}), 400
+
+    build_order_items(cart, order)
+    recompute_order_totals(order)
+    db.session.commit()
+    return jsonify(serialize_order(order))
+
+@app.route("/api/pos/order/<int:oid>/item/<int:item_id>/qty", methods=["POST"])
+def api_pos_update_item_qty(oid, item_id):
+    """Change the quantity of one existing line on an order that isn't
+    final yet, or remove it entirely when qty is 0 or less."""
+    if not api_staff_check(): return jsonify({"error":"Unauthorized"}), 401
+    order, err = _editable_order_or_error(oid)
+    if err: return err
+    oi = OrderItem.query.filter_by(id=item_id, order_id=oid).first()
+    if not oi:
+        return jsonify({"error":"Item not found on this order"}), 404
+    qty = int((request.get_json(silent=True) or {}).get("qty", 0))
+    if qty <= 0:
+        db.session.delete(oi)
+    else:
+        oi.qty = qty
+    recompute_order_totals(order)
     db.session.commit()
     return jsonify(serialize_order(order))
 
