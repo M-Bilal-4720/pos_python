@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Track Order — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen" style="background:#0a0a0a;">
+  <div class="border-b border-white/5 px-4 py-4">
+    <div class="max-w-lg mx-auto flex items-center justify-between">
+      <a href="/" class="font-forum text-xl text-white uppercase">{{ restaurant.name }}</a>
+      <a href="/customer/dashboard" class="text-neutral-400 text-sm hover:text-accent">← My Orders</a>
+    </div>
+  </div>
+  <div class="max-w-lg mx-auto px-4 py-8">
+    <div class="text-center mb-8">
+      <div class="text-neutral-500 text-sm mb-1">Order</div>
+      <div class="font-forum text-3xl text-white">{{ order.order_no }}</div>
+      {% if order.token_no %}
+      <div class="mt-2 inline-block bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-1">
+        <span class="text-neutral-500 text-xs">Token: </span>
+        <span class="text-green-400 font-bold text-lg">{{ order.token_no }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Status Timeline -->
+    <div class="bg-[#111] border border-white/5 rounded-2xl p-6 mb-6">
+      {% set all_steps = ['pending','confirmed','preparing','ready','completed'] %}
+      {% set step_labels = {'pending':'Order Received','confirmed':'Confirmed','preparing':'Preparing','ready':'Ready to Collect','completed':'Completed'} %}
+      {% set step_icons = {'pending':'📋','confirmed':'✅','preparing':'👨‍🍳','ready':'🔔','completed':'✓'} %}
+      {% set current_idx = all_steps.index(order.status) if order.status in all_steps else 0 %}
+      {% for step in all_steps %}
+      {% set idx = loop.index0 %}
+      <div class="flex items-center gap-4 {% if not loop.last %}mb-4{% endif %}">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-lg
+          {% if idx < current_idx %}bg-green-500/20 border border-green-500/40
+          {% elif idx == current_idx %}bg-accent border-2 border-accent
+          {% else %}bg-white/5 border border-white/10{% endif %}">
+          {{ step_icons[step] }}
+        </div>
+        <div class="flex-1">
+          <div class="text-sm font-medium
+            {% if idx < current_idx %}text-green-400
+            {% elif idx == current_idx %}text-accent
+            {% else %}text-neutral-600{% endif %}">
+            {{ step_labels[step] }}
+          </div>
+        </div>
+        {% if idx == current_idx %}
+        <div class="text-xs text-accent font-medium animate-pulse">● Now</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Order Items -->
+    <div class="bg-[#111] border border-white/5 rounded-2xl p-6 mb-6">
+      <h3 class="text-white text-sm uppercase tracking-wide mb-4">Your Order</h3>
+      <div class="space-y-3">
+        {% for i in order.items %}
+        <div class="flex justify-between text-sm">
+          <div>
+            <span class="text-white">{{ i.qty }}× {{ i.name }}</span>
+            {% if i.addons %}<div class="text-xs text-accent mt-0.5">+ {{ i.addons|map(attribute='name')|join(', ') }}</div>{% endif %}
+          </div>
+          <span class="text-neutral-400">RM{{ "%.2f"|format(i.line_total) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="border-t border-white/5 mt-4 pt-4 flex justify-between text-white font-semibold">
+        <span>Total</span><span class="text-accent">RM{{ "%.2f"|format(order.total) }}</span>
+      </div>
+    </div>
+
+    <div class="text-center">
+      <a href="/order" class="inline-block bg-accent text-white px-8 py-3 rounded-xl font-medium">Order More</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let _lastStatus = '{{ order.status }}';
+async function pollStatus(){
+  try{
+    const r = await fetch('/api/order-status/{{ order.order_no }}');
+    const d = await r.json();
+    if(d.status !== _lastStatus){ location.reload(); }
+  }catch(e){}
+}
+setInterval(pollStatus, 5000);
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Server Error — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center px-4 text-center">
+  <div>
+    <div class="font-forum text-[120px] text-red-500/20 leading-none">500</div>
+    <h1 class="font-forum text-3xl text-white mt-2">Something Went Wrong</h1>
+    <p class="text-neutral-500 mt-3 mb-8">Server error — please try again or contact support.</p>
+    <div class="flex gap-4 justify-center">
+      <a href="/" class="bg-accent text-white px-6 py-2.5 rounded-xl font-medium">Go Home</a>
+      <a href="javascript:location.reload()" class="bg-[#111] border border-white/10 text-neutral-300 px-6 py-2.5 rounded-xl">Retry</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

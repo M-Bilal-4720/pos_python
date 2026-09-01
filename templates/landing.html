@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ restaurant.name }} — {{ restaurant.tagline }}{% endblock %}
+{% block body %}
+
+<header class="fixed top-0 w-full z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-white/5">
+  <div class="max-w-7xl mx-auto h-20 flex items-center justify-between px-6">
+    <div class="flex items-center gap-3">
+      {% if restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url %}
+      <img loading="lazy" src="{{ restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url }}"
+           data-logo-dark="{{ restaurant.logo_dark_mode_url }}" data-logo-light="{{ restaurant.logo_light_mode_url }}"
+           class="site-logo w-11 h-11 rounded-full object-cover border-2 border-accent" alt="logo">
+      {% else %}
+      <div class="w-11 h-11 rounded-full border-2 border-accent flex items-center justify-center font-forum text-accent text-xl">I</div>
+      {% endif %}
+      <div>
+        <div class="font-forum text-lg tracking-wide uppercase text-white leading-tight">{{ restaurant.name }}</div>
+        <div class="text-[10px] text-neutral-500 uppercase tracking-[0.2em]">Restaurant · Est. {{ restaurant.est }}</div>
+      </div>
+    </div>
+    <nav class="hidden md:flex items-center gap-8 text-sm text-neutral-300">
+      <a href="#story" class="hover:text-accent transition duration-300">Our Story</a>
+      <a href="#menu" class="hover:text-accent transition duration-300">Menu</a>
+      <a href="#location" class="hover:text-accent transition duration-300">Location</a>
+    </nav>
+    <a href="/reserve" class="text-neutral-400 hover:text-accent text-sm transition mr-4">Reserve Table</a>
+      <a href="/order" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white px-5 py-2.5 rounded-xl text-sm font-medium">Order Online</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="relative h-screen flex items-center justify-center overflow-hidden">
+  <div class="absolute inset-0">
+    <img loading="lazy" src="{{ settings.hero_image_url }}" class="w-full h-full object-cover" alt="Daigi biryani">
+  </div>
+  <div class="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/80 via-[#0a0a0a]/60 to-[#0a0a0a]"></div>
+  <div class="relative z-10 text-center px-6 animate-fade-in">
+    <div class="text-accent text-xs tracking-[0.3em] uppercase mb-4">A True Taste of Pakistan</div>
+    <h1 class="font-forum text-5xl md:text-7xl text-white uppercase leading-tight">
+      Rich in Tradition <br><span class="text-accent">Big on Flavor</span>
+    </h1>
+    <p class="mt-6 text-neutral-300 max-w-xl mx-auto">
+      Daigi biryanis, sizzling karahis, and charcoal-grilled BBQ — cooked the way it's done back home, served fresh in Kuala Lumpur.
+    </p>
+    <div class="mt-8 flex items-center justify-center gap-4">
+      <a href="/order" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white px-7 py-3.5 rounded-xl font-medium">Order Now</a>
+      <a href="#menu" class="border border-white/20 hover:border-accent text-white px-7 py-3.5 rounded-xl transition duration-300">View Menu</a>
+    </div>
+  </div>
+  <a href="#story" class="absolute bottom-10 left-1/2 -translate-x-1/2 text-neutral-400 animate-bounce">
+    <iconify-icon icon="solar:arrow-down-linear" width="26"></iconify-icon>
+  </a>
+</section>
+
+<!-- STORY -->
+<section id="story" class="lazy-fade" class="py-24 px-6 max-w-6xl mx-auto">
+  <div class="grid md:grid-cols-2 gap-12 items-center">
+    <div class="relative">
+      <div class="aspect-[4/5] rounded-2xl overflow-hidden border border-white/5">
+        <img loading="lazy" src="{{ settings.about_image_url }}" class="w-full h-full object-cover" alt="Charcoal grill">
+      </div>
+      <div class="absolute -bottom-6 -right-6 w-28 h-28 rounded-full bg-accent flex items-center justify-center text-white text-center text-xs font-medium p-3 shadow-xl">
+        Halal · Daigi Cooked
+      </div>
+    </div>
+    <div>
+      <div class="text-accent text-xs tracking-[0.3em] uppercase mb-3">Our Story</div>
+      <h2 class="font-forum text-3xl md:text-4xl text-white uppercase mb-5">Slow-Cooked, Daig Style</h2>
+      <p class="text-neutral-400 leading-relaxed">
+        {{ settings.about_text }}
+      </p>
+      <div class="grid grid-cols-2 gap-4 mt-8">
+        <div class="bg-[#111] border border-white/5 rounded-xl p-4">
+          <iconify-icon icon="solar:leaf-linear" class="text-accent text-xl"></iconify-icon>
+          <div class="text-white text-sm mt-2">Premium Ingredients</div>
+        </div>
+        <div class="bg-[#111] border border-white/5 rounded-xl p-4">
+          <iconify-icon icon="solar:flame-linear" class="text-accent text-xl"></iconify-icon>
+          <div class="text-white text-sm mt-2">Cooked to Perfection</div>
+        </div>
+        <div class="bg-[#111] border border-white/5 rounded-xl p-4">
+          <iconify-icon icon="solar:cup-hot-linear" class="text-accent text-xl"></iconify-icon>
+          <div class="text-white text-sm mt-2">Authentic Recipes</div>
+        </div>
+        <div class="bg-[#111] border border-white/5 rounded-xl p-4">
+          <iconify-icon icon="solar:users-group-rounded-linear" class="text-accent text-xl"></iconify-icon>
+          <div class="text-white text-sm mt-2">Made for Food Lovers</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED MENU -->
+<section id="menu" class="lazy-fade" class="py-24 px-6 bg-[#0d0d0d]">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-12">
+      <div class="text-accent text-xs tracking-[0.3em] uppercase mb-3">Signature Picks</div>
+      <h2 class="font-forum text-3xl md:text-4xl text-white uppercase">From Our Menu</h2>
+    </div>
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-5">
+      {% for item in featured %}
+      <div class="group relative aspect-square rounded-2xl overflow-hidden border border-white/5">
+        <img loading="lazy" src="{{ item.image_url }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-700" alt="{{ item.name }}">
+        <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent"></div>
+        <div class="absolute bottom-0 left-0 right-0 p-4">
+          <div class="text-white font-medium">{{ item.name }}</div>
+          <div class="text-accent text-sm mt-0.5">RM{{ "%.2f"|format(item.price_full or item.price_half) }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="text-center mt-12">
+      <a href="/order" class="inline-block bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white px-8 py-3.5 rounded-xl font-medium">See Full Menu &amp; Order</a>
+    </div>
+  </div>
+</section>
+
+<!-- LOCATION -->
+<section id="location" class="lazy-fade" class="py-24 px-6 max-w-6xl mx-auto">
+  <div class="grid md:grid-cols-2 gap-10 items-center">
+    <div class="relative aspect-[4/3] rounded-2xl overflow-hidden border border-white/5">
+      <img loading="lazy" src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=1200&auto=format&fit=crop" class="w-full h-full object-cover grayscale mix-blend-luminosity opacity-70" alt="Map">
+      <div class="absolute inset-0 flex items-center justify-center">
+        <div class="text-accent drop-shadow-[0_0_10px_rgba(198,90,30,0.7)]">
+          <iconify-icon icon="solar:map-point-bold" width="48"></iconify-icon>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="text-accent text-xs tracking-[0.3em] uppercase mb-3">Visit Us</div>
+      <h2 class="font-forum text-3xl text-white uppercase mb-5">Find {{ restaurant.name }}</h2>
+      <div class="flex items-start gap-3 text-neutral-400 mb-4">
+        <iconify-icon icon="solar:map-point-linear" class="text-accent mt-1"></iconify-icon>
+        <span>{{ restaurant.address }}</span>
+      </div>
+      <div class="flex items-start gap-3 text-neutral-400 mb-4">
+        <iconify-icon icon="solar:phone-linear" class="text-accent mt-1"></iconify-icon>
+        <span>{{ restaurant.phone }}</span>
+      </div>
+      <div class="flex items-start gap-3 text-neutral-400">
+        <iconify-icon icon="solar:clock-circle-linear" class="text-accent mt-1"></iconify-icon>
+        <span>Open Daily · 11:00 AM – 12:00 AM</span>
+      </div>
+      <a href="/order" class="inline-block mt-8 bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white px-7 py-3 rounded-xl font-medium">Order for Pickup or Delivery</a>
+    </div>
+  </div>
+</section>
+
+<footer class="relative bg-black py-12 overflow-hidden">
+  <div class="absolute inset-0 opacity-[0.03]" style="background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22 stitchTiles=%22stitch%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>')"></div>
+  <div class="relative max-w-6xl mx-auto px-6 grid sm:grid-cols-3 gap-8 text-sm text-neutral-500">
+    <div>
+      <div class="font-forum text-white text-lg uppercase mb-2">{{ restaurant.name }}</div>
+      <p>{{ settings.footer_text }}</p>
+    </div>
+    <div>
+      <div class="text-white text-sm mb-2 uppercase tracking-wide">Contact</div>
+      <p>{{ restaurant.address }}</p>
+      <p class="mt-1">{{ restaurant.phone }}</p>
+    </div>
+    <div>
+      <div class="text-white text-sm mb-2 uppercase tracking-wide">Quick Links</div>
+      <a href="/order" class="block hover:text-accent transition duration-300">Order Online</a>
+      <a href="#menu" class="block hover:text-accent transition duration-300 mt-1">Menu</a>
+    </div>
+  </div>
+  <div class="relative max-w-6xl mx-auto px-6 mt-8 pt-6 border-t border-white/5 text-xs text-neutral-600">
+    © {{ restaurant.est }}–2026 {{ restaurant.name }}. All rights reserved.
+  </div>
+</footer>
+
+<style>
+@keyframes fadeIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+.animate-fade-in { animation: fadeIn 0.8s ease-out; }
+</style>
+{% endblock %}

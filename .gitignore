@@ -1,0 +1,10 @@
+*.db
+*.pyc
+__pycache__/
+venv/
+static/uploads/
+.env
+*.log
+maibistro.db
+instance/.secret_key
+*.zip

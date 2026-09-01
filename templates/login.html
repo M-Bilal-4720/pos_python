@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Staff Login — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-md bg-[#111] border border-white/10 rounded-2xl p-7">
+    <div class="text-center mb-5">
+      <div class="font-forum text-3xl text-white uppercase">Staff Login</div>
+      <p class="text-sm text-neutral-500 mt-1">Select role and enter password</p>
+    </div>
+
+    {% if error %}
+    <div class="mb-4 text-sm bg-red-500/10 border border-red-500/40 text-red-300 rounded-lg px-3 py-2">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" class="space-y-3">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <select name="role" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-3 text-sm">
+        <option value="admin">Admin</option>
+        <option value="cashier">Cashier</option>
+        <option value="kitchen">Kitchen</option>
+      </select>
+      <input name="password" type="password" placeholder="Password" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-3 text-sm">
+      <button type="submit" class="w-full bg-accent text-white py-3 rounded-lg font-medium">Login</button>
+    </form>
+
+    <p class="text-xs text-neutral-600 mt-4">Set secure passwords via env vars: MAI_ADMIN_PASSWORD, MAI_CASHIER_PASSWORD, MAI_KITCHEN_PASSWORD.</p>
+  </div>
+</div>
+{% endblock %}

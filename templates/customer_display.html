@@ -1,0 +1,229 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Customer Display — {{ restaurant.name }}</title>
+<script>
+(function(){
+  try{
+    var saved = localStorage.getItem('theme');
+    var theme = saved || "{{ restaurant.theme_default|default('dark') }}";
+    if(theme !== 'light' && theme !== 'dark') theme = 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+  }catch(e){ document.documentElement.setAttribute('data-theme','dark'); }
+})();
+</script>
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0a0a0a;font-family:'Segoe UI',sans-serif;color:#fff;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+.header{background:#111;border-bottom:2px solid #C65A1E;padding:12px 30px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.logo-wrap{display:flex;align-items:center;gap:14px;}
+.logo-img{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid #C65A1E;}
+.logo-text{font-family:serif;font-size:24px;text-transform:uppercase;letter-spacing:3px;}
+.logo-sub{font-size:11px;color:#6b7280;letter-spacing:2px;text-transform:uppercase;}
+.clock{font-size:24px;font-weight:700;color:#C65A1E;font-family:monospace;}
+
+.main{flex:1;display:grid;grid-template-columns:1fr 380px;overflow:hidden;}
+
+/* Items panel */
+.items-panel{padding:20px;overflow-y:auto;border-right:1px solid #ffffff10;}
+.panel-title{font-size:12px;text-transform:uppercase;letter-spacing:3px;color:#6b7280;margin-bottom:14px;}
+.item-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#111;border-radius:10px;margin-bottom:8px;border:1px solid #ffffff08;animation:slideIn 0.3s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.item-qty{background:#C65A1E;color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0;}
+.item-name{font-size:15px;font-weight:600;flex:1;}
+.item-size{font-size:11px;color:#6b7280;}
+.item-addon{font-size:11px;color:#C65A1E;}
+.item-price{font-size:16px;font-weight:700;color:#C65A1E;}
+
+/* Totals panel */
+.totals-panel{background:#111;padding:24px;display:flex;flex-direction:column;gap:0;}
+.total-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ffffff08;font-size:15px;color:#9ca3af;}
+.total-row.grand{border-top:2px solid #C65A1E;border-bottom:none;margin-top:10px;padding-top:16px;}
+.total-row.grand .label{font-size:20px;font-weight:700;color:#fff;}
+.total-row.grand .amount{font-size:32px;font-weight:900;color:#C65A1E;}
+.summary-title{font-size:12px;text-transform:uppercase;letter-spacing:3px;color:#6b7280;margin-bottom:16px;}
+
+/* Idle screen */
+.idle-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:10;transition:opacity 0.5s;}
+.idle-screen.hidden{opacity:0;pointer-events:none;}
+.idle-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;}
+.idle-bg::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,0.6);}
+.idle-content{position:relative;z-index:1;}
+.idle-logo{width:120px;height:120px;border-radius:50%;border:4px solid #C65A1E;object-fit:cover;margin:0 auto 24px;display:block;}
+.idle-logo-placeholder{width:120px;height:120px;border-radius:50%;border:4px solid #C65A1E;display:flex;align-items:center;justify-content:center;font-family:serif;font-size:48px;color:#C65A1E;margin:0 auto 24px;}
+.idle-title{font-family:serif;font-size:48px;text-transform:uppercase;letter-spacing:4px;margin-bottom:8px;}
+.idle-sub{color:#9ca3af;font-size:16px;letter-spacing:2px;}
+.idle-tagline{color:#C65A1E;font-size:14px;margin-top:16px;letter-spacing:1px;}
+.halal{display:inline-flex;align-items:center;gap:6px;background:rgba(198,90,30,0.15);border:1px solid rgba(198,90,30,0.3);border-radius:20px;padding:8px 20px;font-size:13px;color:#C65A1E;margin-top:20px;}
+
+/* Footer */
+.footer{background:#111;border-top:1px solid #ffffff08;padding:10px 30px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.footer-addr{font-size:12px;color:#6b7280;}
+.powered{font-size:11px;color:#374151;}
+.powered span{color:#C65A1E;font-weight:700;}
+</style>
+</head>
+<body>
+<div id="theme-root">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    {% if restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url %}
+    <img src="{{ restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url }}"
+         data-logo-dark="{{ restaurant.logo_dark_mode_url }}" data-logo-light="{{ restaurant.logo_light_mode_url }}"
+         class="site-logo logo-img">
+    {% else %}
+    <div style="width:50px;height:50px;border-radius:50%;border:2px solid #C65A1E;display:flex;align-items:center;justify-content:center;font-family:serif;font-size:22px;color:#C65A1E;">I</div>
+    {% endif %}
+    <div>
+      <div class="logo-text">{{ restaurant.name }}</div>
+      <div class="logo-sub">Est. {{ restaurant.est }} · Kuala Lumpur</div>
+    </div>
+  </div>
+  <div class="clock" id="clock">00:00:00</div>
+</div>
+
+<!-- IDLE SCREEN -->
+<div class="idle-screen" id="idle-screen">
+  {% if settings.display_bg_url %}
+  <div class="idle-bg no-invert" style="background-image:url('{{ settings.display_bg_url }}');"></div>
+  {% else %}
+  <div class="idle-bg" style="background:linear-gradient(135deg,#1a0800,#0a0a0a);"></div>
+  {% endif %}
+  <div class="idle-content">
+    {% if restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url %}
+    <img src="{{ restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url }}"
+         data-logo-dark="{{ restaurant.logo_dark_mode_url }}" data-logo-light="{{ restaurant.logo_light_mode_url }}"
+         class="site-logo idle-logo">
+    {% else %}
+    <div class="idle-logo-placeholder">I</div>
+    {% endif %}
+    <div class="idle-title">{{ restaurant.name }}</div>
+    <div class="idle-sub">A True Taste of Pakistan</div>
+    <div class="idle-tagline">{{ settings.display_idle_text or 'Welcome! Please scan QR or order at counter.' }}</div>
+    <div class="halal">✓ 100% Halal Certified</div>
+  </div>
+</div>
+
+<!-- MAIN ORDER DISPLAY -->
+<div class="main" id="order-screen" style="display:none;">
+  <div class="items-panel">
+    <div class="panel-title">Your Order</div>
+    <div id="items-list"></div>
+  </div>
+  <div class="totals-panel">
+    <div class="summary-title">Bill Summary</div>
+    <div id="totals-section"></div>
+    <div style="margin-top:auto;text-align:center;padding-top:20px;">
+      {% if restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url %}
+      <img src="{{ restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url }}"
+           data-logo-dark="{{ restaurant.logo_dark_mode_url }}" data-logo-light="{{ restaurant.logo_light_mode_url }}"
+           class="site-logo" style="width:60px;height:60px;border-radius:50%;border:2px solid #C65A1E;object-fit:cover;margin-bottom:10px;">
+      {% endif %}
+      <div style="font-size:12px;color:#374151;">{{ restaurant.address }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-addr">{{ restaurant.address }} · {{ restaurant.phone }}</div>
+  <div class="powered">Powered by <span>Zee Tech</span></div>
+</div>
+
+</div><!-- /#theme-root -->
+
+<link rel="preconnect" href="https://code.iconify.design" crossorigin>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js" defer></script>
+<button type="button" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle light/dark mode" title="Toggle light/dark mode">
+  <iconify-icon id="theme-toggle-icon" icon="solar:sun-linear"></iconify-icon>
+</button>
+<script>
+function applyThemeLogos(){
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+  document.querySelectorAll('.site-logo').forEach(img=>{
+    const url = theme === 'light' ? img.dataset.logoLight : img.dataset.logoDark;
+    if(url) img.src = url;
+  });
+}
+function updateThemeToggleIcon(){
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const icon = document.getElementById('theme-toggle-icon');
+  if(icon) icon.setAttribute('icon', theme === 'light' ? 'solar:moon-linear' : 'solar:sun-linear');
+}
+function toggleTheme(){
+  const html = document.documentElement;
+  const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  html.setAttribute('data-theme', next);
+  try{ localStorage.setItem('theme', next); }catch(e){}
+  applyThemeLogos();
+  updateThemeToggleIcon();
+}
+document.addEventListener('DOMContentLoaded', ()=>{ applyThemeLogos(); updateThemeToggleIcon(); });
+
+// Clock
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+}
+setInterval(updateClock,1000);
+updateClock();
+
+let idleTimer;
+
+function showIdle(){
+  document.getElementById('idle-screen').classList.remove('hidden');
+  document.getElementById('order-screen').style.display='none';
+}
+
+function showOrder(){
+  document.getElementById('idle-screen').classList.add('hidden');
+  document.getElementById('order-screen').style.display='grid';
+  // Auto hide after 2 min of no updates
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(showIdle, 120000);
+}
+
+function renderDisplay(cart, subtotal, tax, total){
+  if(!cart || !cart.length){ showIdle(); return; }
+  showOrder();
+  
+  document.getElementById('items-list').innerHTML = cart.map(item=>{
+    const addonTotal=(item.addons||[]).reduce((a,b)=>a+b.price,0);
+    const lineTotal=((item.price+addonTotal)*item.qty).toFixed(2);
+    return `<div class="item-row">
+      <div class="item-qty">${item.qty}</div>
+      <div style="flex:1;">
+        <div class="item-name">${item.name}${item.size?' <span class="item-size">('+item.size+')</span>':''}</div>
+        ${item.addons?.length?'<div class="item-addon">+ '+item.addons.map(a=>a.name).join(', ')+'</div>':''}
+      </div>
+      <div class="item-price">RM ${lineTotal}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('totals-section').innerHTML = `
+    <div class="total-row"><span>Subtotal</span><span>RM ${subtotal.toFixed(2)}</span></div>
+    ${tax>0?'<div class="total-row"><span>Tax (6%)</span><span>RM '+tax.toFixed(2)+'</span></div>':''}
+    <div class="total-row grand"><span class="label">TOTAL</span><span class="amount">RM ${total.toFixed(2)}</span></div>
+  `;
+}
+
+// BroadcastChannel
+const bc = new BroadcastChannel('maibistro_display');
+bc.onmessage = (e) => {
+  if(e.data.type==='cart_update') renderDisplay(e.data.cart,e.data.subtotal,e.data.tax,e.data.total);
+};
+
+// localStorage fallback
+window.addEventListener('storage',(e)=>{
+  if(e.key==='display_cart'){
+    try{ const d=JSON.parse(e.newValue); renderDisplay(d.cart,d.subtotal,d.tax,d.total); }catch(err){}
+  }
+});
+</script>
+</body>
+</html>

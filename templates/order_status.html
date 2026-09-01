@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Order {{ order.order_no }} — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center px-4">
+  <div class="max-w-md w-full bg-[#111] border border-white/10 rounded-2xl p-8 text-center">
+    <div class="w-14 h-14 mx-auto rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent text-2xl">
+      <iconify-icon icon="solar:check-circle-linear"></iconify-icon>
+    </div>
+    <h1 class="font-forum text-2xl text-white mt-4 uppercase">Order Placed</h1>
+    <p class="text-neutral-500 text-sm mt-1">Order No. <span class="text-accent">{{ order.order_no }}</span></p>
+
+    <div class="mt-6 text-left space-y-2">
+      {% for i in order.items %}
+      <div class="flex justify-between text-sm text-neutral-300">
+        <span>{{ i.qty }} × {{ i.name }} ({{ i.size }})</span>
+        <span>RM{{ "%.2f"|format(i.line_total) }}</span>
+      </div>
+      {% endfor %}
+      <div class="border-t border-white/10 mt-3 pt-3 flex justify-between text-white font-medium">
+        <span>Total</span><span class="text-accent">RM{{ "%.2f"|format(order.total) }}</span>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <span id="status-badge" class="inline-block px-4 py-2 rounded-full text-xs uppercase tracking-wide bg-accent/10 text-accent border border-accent/30">{{ order.status }}</span>
+      {% if order.payment_status == 'paid' %}
+      <span class="inline-block ml-2 px-3 py-1.5 rounded-full text-xs bg-green-500/10 text-green-400 border border-green-500/20">Paid ✓</span>
+      {% elif order.payment_status == 'pending_verification' %}
+      <span class="inline-block ml-2 px-3 py-1.5 rounded-full text-xs bg-blue-500/10 text-blue-400 border border-blue-500/20">TnG — Pending Verification</span>
+      {% elif order.payment_status == 'unpaid' %}
+      <span id="pay-status-badge" class="inline-block ml-2 px-3 py-1.5 rounded-full text-xs bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Payment pending…</span>
+      {% endif %}
+    </div>
+    <p class="text-xs text-neutral-600 mt-4">This page auto-updates as your order progresses in the kitchen.</p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function poll(){
+  try{
+    const res=await fetch('/api/order-status/{{ order.order_no }}');
+    if(!res.ok) return;
+    const data=await res.json();
+    const badge=document.getElementById('status-badge');
+    if(badge) badge.textContent=data.status;
+    if(data.status==='completed'||data.status==='served'){
+      badge.style.background='rgba(22,163,74,0.1)';
+      badge.style.color='#4ade80';
+      badge.style.border='1px solid rgba(22,163,74,0.3)';
+    }
+    // Update payment status badge dynamically (HitPay webhook may have fired)
+    const payBadge=document.getElementById('pay-status-badge');
+    if(payBadge && data.payment_status==='paid'){
+      payBadge.textContent='Paid ✓';
+      payBadge.className='inline-block ml-2 px-3 py-1.5 rounded-full text-xs bg-green-500/10 text-green-400 border border-green-500/20';
+    }
+  }catch(e){}
+}
+poll();
+setInterval(poll,4000);
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Staff Login — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center px-4" style="background:#0a0a0a;">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 rounded-full bg-accent/10 border-2 border-accent flex items-center justify-center mx-auto mb-4">
+        <iconify-icon icon="solar:user-check-linear" class="text-accent text-3xl"></iconify-icon>
+      </div>
+      <h1 class="font-forum text-2xl text-white uppercase tracking-wide">{% if admin_only %}Admin Console{% else %}Staff Login{% endif %}</h1>
+      <p class="text-neutral-500 text-sm mt-1">{{ restaurant.name }}</p>
+      {% if admin_only %}<div class="bg-accent/10 border border-accent/20 rounded-lg px-3 py-1.5 text-accent text-xs mt-2">🔐 Admin & Manager Access Only</div>{% endif %}
+    </div>
+
+    <form method="POST" action="/login?next={{ next_url }}" class="bg-[#111] border border-white/10 rounded-2xl p-8 space-y-4">
+      <div>
+        <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Username</label>
+        <input type="text" name="username" autofocus autocomplete="username"
+          class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition"
+          placeholder="Enter username">
+      </div>
+      <div>
+        <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Password</label>
+        <input type="password" name="password" autocomplete="current-password"
+          class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition"
+          placeholder="Enter password">
+      </div>
+
+      {% if error %}
+      <div class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm text-center">
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <button type="submit"
+        class="w-full bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white py-3 rounded-xl font-medium">
+        Login
+      </button>
+    </form>
+
+    
+      <div class="mt-2 text-neutral-600">⚠ Change passwords from Admin → Staff panel after first login.</div>
+    </div>
+
+    <p class="text-center text-neutral-600 text-xs mt-4">
+      <a href="/" class="hover:text-accent transition">← Back to website</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}My Orders — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen" style="background:#0a0a0a;">
+  <div class="border-b border-white/5 px-4 py-4">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <a href="/" class="font-forum text-xl text-white uppercase">{{ restaurant.name }}</a>
+      <div class="flex items-center gap-4">
+        <span class="text-neutral-400 text-sm">Hi, {{ customer.name.split()[0] }}!</span>
+        <a href="/order" class="bg-accent text-white text-xs px-4 py-2 rounded-lg">Order Now</a>
+        <a href="/customer/logout" class="text-neutral-500 text-xs hover:text-accent">Logout</a>
+      </div>
+    </div>
+  </div>
+  <div class="max-w-2xl mx-auto px-4 py-8">
+
+    {% if just_verified %}
+    <div class="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 text-green-400 text-sm mb-6 flex items-center gap-2">
+      <iconify-icon icon="solar:check-circle-bold"></iconify-icon> Your email is verified!
+    </div>
+    {% elif not customer.email_verified %}
+    <div id="verify-banner" class="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3 text-yellow-400 text-sm mb-6 flex items-center justify-between gap-3 flex-wrap">
+      <span class="flex items-center gap-2"><iconify-icon icon="solar:letter-unread-linear"></iconify-icon> Please verify your email address.</span>
+      <button onclick="resendVerification()" id="resend-btn" class="text-yellow-300 underline text-xs shrink-0">Resend verification email</button>
+    </div>
+    {% endif %}
+
+    <!-- Account / Profile -->
+    <div class="bg-[#111] border border-white/5 rounded-xl p-5 mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-white font-medium text-sm uppercase tracking-wide">My Account</h2>
+        <button id="profile-edit-btn" onclick="toggleProfileEdit()" class="text-accent text-xs hover:underline">Edit</button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-neutral-500">Name</span>
+          <span class="text-white" id="p-name-view">{{ customer.name }}</span>
+          <input id="p-name-edit" value="{{ customer.name }}" class="hidden bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-1.5 text-white text-right flex-1 max-w-[60%]">
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-neutral-500">Email</span>
+          <span class="text-white flex items-center gap-1.5">
+            {{ customer.email }}
+            {% if customer.email_verified %}<iconify-icon icon="solar:check-circle-bold" class="text-green-400" title="Verified"></iconify-icon>
+            {% else %}<span class="text-yellow-500 text-[10px] uppercase">Unverified</span>{% endif %}
+          </span>
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-neutral-500 shrink-0">Phone</span>
+          <span class="text-white" id="p-phone-view">{{ customer.phone or '—' }}</span>
+          <input id="p-phone-edit" value="{{ customer.phone }}" placeholder="+60 1X-XXX XXXX" class="hidden bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-1.5 text-white text-right flex-1 max-w-[60%]">
+        </div>
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-neutral-500 shrink-0">Address</span>
+          <span class="text-white text-right" id="p-address-view">{{ customer.address or '—' }}</span>
+          <input id="p-address-edit" value="{{ customer.address }}" placeholder="Type your address" class="hidden bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-1.5 text-white text-right flex-1 max-w-[60%]">
+        </div>
+      </div>
+      <button id="profile-save-btn" onclick="saveProfile()" class="hidden w-full mt-4 bg-accent text-white text-sm py-2 rounded-lg font-medium">Save Changes</button>
+    </div>
+
+    <h1 class="font-forum text-3xl text-white uppercase mb-6">My Orders</h1>
+    {% if orders %}
+    <div class="space-y-4">
+      {% for o in orders %}
+      <a href="/customer/track/{{ o.order_no }}" class="block bg-[#111] border border-white/5 hover:border-accent/30 rounded-xl p-5 transition">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <div class="text-white font-medium">{{ o.order_no }}</div>
+            <div class="text-neutral-500 text-xs mt-0.5">{{ o.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-accent font-semibold">RM{{ "%.2f"|format(o.total) }}</div>
+            <div class="text-xs mt-1 px-2 py-0.5 rounded-full inline-block
+              {% if o.status=='completed' %}bg-green-500/10 text-green-400
+              {% elif o.status=='preparing' %}bg-purple-500/10 text-purple-400
+              {% elif o.status=='ready' %}bg-blue-500/10 text-blue-400
+              {% else %}bg-yellow-500/10 text-yellow-400{% endif %}">
+              {{ o.status|title }}
+            </div>
+          </div>
+        </div>
+        <div class="text-neutral-500 text-xs">
+          {{ o.items|map(attribute='name')|list|join(', ')|truncate(60) }}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-16">
+      <div class="text-6xl mb-4">🍽</div>
+      <div class="text-white text-lg font-forum mb-2">No orders yet</div>
+      <p class="text-neutral-500 text-sm mb-6">Start exploring our menu!</p>
+      <a href="/order" class="bg-accent text-white px-6 py-3 rounded-xl font-medium">Order Now</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleProfileEdit(){
+  const editing = !document.getElementById('p-name-edit').classList.contains('hidden');
+  ['name','phone','address'].forEach(f=>{
+    document.getElementById('p-'+f+'-view').classList.toggle('hidden', !editing);
+    document.getElementById('p-'+f+'-edit').classList.toggle('hidden', editing);
+  });
+  document.getElementById('profile-save-btn').classList.toggle('hidden', editing);
+  document.getElementById('profile-edit-btn').textContent = editing ? 'Edit' : 'Cancel';
+}
+async function saveProfile(){
+  const payload = {
+    name: document.getElementById('p-name-edit').value,
+    phone: document.getElementById('p-phone-edit').value,
+    address: document.getElementById('p-address-edit').value,
+  };
+  const res = await fetch('/api/customer/profile', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  const data = await res.json();
+  if(data.error){ toast(data.error,'error'); return; }
+  document.getElementById('p-name-view').textContent = data.name;
+  document.getElementById('p-phone-view').textContent = data.phone || '—';
+  document.getElementById('p-address-view').textContent = data.address || '—';
+  toggleProfileEdit();
+  toast('Profile updated','success');
+}
+async function resendVerification(){
+  const btn = document.getElementById('resend-btn');
+  btn.textContent = 'Sending…'; btn.disabled = true;
+  const res = await fetch('/api/customer/resend-verification', {method:'POST'});
+  const data = await res.json();
+  if(data.error){ toast(data.error,'error'); btn.textContent='Resend verification email'; btn.disabled=false; return; }
+  toast('Verification email sent — check your inbox','success');
+  btn.textContent = 'Sent!';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Access Denied — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen flex items-center justify-center px-4 text-center">
+  <div>
+    <div class="font-forum text-[120px] text-red-500/20 leading-none">403</div>
+    <h1 class="font-forum text-3xl text-white mt-2">Access Denied</h1>
+    {% if reason %}
+    <p class="text-neutral-500 mt-2">{{ reason }}</p>
+    {% else %}
+    <p class="text-neutral-500 mt-2">You don't have permission to access this page.</p>
+    {% endif %}
+    <div class="flex gap-4 justify-center mt-8">
+      <a href="/login" class="bg-accent text-white px-6 py-2.5 rounded-xl font-medium">Login</a>
+      <a href="/" class="bg-[#111] border border-white/10 text-neutral-300 px-6 py-2.5 rounded-xl">Home</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>{% block title %}{{ restaurant.name }}{% endblock %}</title>
+
+<!-- Set data-theme before anything paints, so there's no flash of the
+     wrong theme. Priority: saved user choice > admin's configured
+     default > dark (this site's native look). -->
+<script>
+(function(){
+  try{
+    var saved = localStorage.getItem('theme');
+    var theme = saved || "{{ restaurant.theme_default|default('dark') }}";
+    if(theme !== 'light' && theme !== 'dark') theme = 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+  }catch(e){ document.documentElement.setAttribute('data-theme','dark'); }
+})();
+</script>
+
+<!-- Preconnect for performance (Cloudflare edge picks these up too) -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="{{ restaurant.name|default('Islamabad Restaurant & Cafe') }}">
+<!-- Favicon — admin-editable (Site Settings → Appearance); falls back to
+     the template's bundled default if nothing's been uploaded. -->
+<link rel="apple-touch-icon" href="{{ restaurant.favicon_url or '/static/favicon.jpg' }}">
+<link rel="icon" type="image/png" href="{{ restaurant.favicon_url or '/static/favicon.ico' }}">
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://code.iconify.design" crossorigin>
+<link rel="dns-prefetch" href="https://images.unsplash.com">
+
+<!-- Fonts — display=swap for no FOUT -->
+<link href="https://fonts.googleapis.com/css2?family=Forum&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/theme.css">
+<script src="https://cdn.tailwindcss.com" defer></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js" defer></script>
+
+<script>
+// Tailwind config (must run sync, before defer scripts)
+// Accent color is admin-editable (Site Settings → Primary Color)
+window.tailwindConfig = {
+  theme:{extend:{colors:{accent:"{{ restaurant.primary|default('#C65A1E') }}",ink:"#0a0a0a",panel:"#111111"},
+  fontFamily:{forum:["Forum","serif"],sans:["Open Sans","sans-serif"]}}}
+};
+</script>
+<script>
+// Apply tailwind config after tailwind loads
+document.addEventListener("DOMContentLoaded",()=>{
+  if(window.tailwind) tailwind.config = window.tailwindConfig;
+});
+</script>
+
+<style>
+  :root{ --bg-page-light: {{ restaurant.bg_light|default('#f7f4ee') }}; }
+  html{scroll-behavior:smooth;}
+  body{background:{{ restaurant.bg_dark|default('#0a0a0a') }};}
+  /* Admin-editable dark-mode page background — overrides the site's
+     built-in bg-[#0a0a0a] utility class (used ~80 places) in one shot
+     instead of needing every element rewritten. */
+  .bg-\[\#0a0a0a\]{background-color:{{ restaurant.bg_dark|default('#0a0a0a') }} !important;}
+  /* Admin-editable button color, independent from the accent/link color.
+     bg-accent is used for filled buttons/CTAs throughout; text-accent and
+     border-accent (headings, links, outlines) are untouched so they keep
+     following the Primary/Accent Color setting. */
+  .bg-accent{background-color:{{ restaurant.button_color|default(restaurant.primary)|default('#C65A1E') }} !important;}
+  ::selection{background:{{ restaurant.primary|default('#C65A1E') }};color:#fff;}
+  ::-webkit-scrollbar{width:7px;height:7px;}
+  ::-webkit-scrollbar-track{background:#0a0a0a;}
+  ::-webkit-scrollbar-thumb{background:#262626;border-radius:8px;}
+  ::-webkit-scrollbar-thumb:hover{background:{{ restaurant.primary|default('#C65A1E') }};}
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1) opacity(.5);}
+  .font-forum{font-family:"Forum",serif;}
+  /* Lazy load fade-in */
+  img[loading="lazy"]{opacity:0;transition:opacity .4s ease;}
+  img[loading="lazy"].loaded{opacity:1;}
+  /* Skeleton pulse */
+  .skel{background:linear-gradient(90deg,#1a1a1a 25%,#242424 50%,#1a1a1a 75%);background-size:200%;animation:skel 1.4s infinite;}
+  @keyframes skel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  /* Fade-in animation for sections */
+  .fade-up{opacity:0;transform:translateY(18px);transition:opacity .5s ease,transform .5s ease;}
+  .fade-up.visible{opacity:1;transform:translateY(0);}
+
+  /* Shared toast notifications (used by POS/Kitchen/Admin) — stacks in the
+     bottom-right on desktop, full-width above the fold on small screens. */
+  #toast-stack{position:fixed;right:14px;bottom:14px;left:14px;z-index:10000;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none;}
+  .toast-msg{pointer-events:auto;max-width:340px;width:100%;background:#1f2937;color:#fff;font-size:13px;font-weight:600;padding:12px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.3);border-left:4px solid #6b7280;opacity:0;transform:translateY(8px);transition:opacity .2s ease,transform .2s ease;}
+  .toast-msg.show{opacity:1;transform:translateY(0);}
+  .toast-msg.success{border-left-color:#16a34a;}
+  .toast-msg.warning{border-left-color:#d97706;}
+  .toast-msg.error  {border-left-color:#ef4444;}
+  @media (max-width:480px){
+    #toast-stack{left:10px;right:10px;bottom:10px;align-items:stretch;}
+    .toast-msg{max-width:none;}
+  }
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body class="bg-[#0a0a0a] text-neutral-400 font-['Open_Sans'] font-light antialiased selection:bg-[#C65A1E] selection:text-white overflow-x-hidden">
+<!-- #theme-root is what actually gets inverted for light mode (see
+     theme.css). The toggle button lives OUTSIDE it, as a direct child of
+     body — filter on an ancestor creates a new containing block for
+     position:fixed descendants, so a button fixed *inside* the inverted
+     wrapper would anchor to the bottom of the whole scrollable page
+     instead of the viewport and disappear off-screen. -->
+<div id="theme-root">
+{% block body %}{% endblock %}
+</div>
+
+<!-- Theme toggle — floats on every page (customer site, POS, Kitchen, Admin) -->
+<button type="button" class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle light/dark mode" title="Toggle light/dark mode">
+  <iconify-icon id="theme-toggle-icon" icon="solar:sun-linear"></iconify-icon>
+</button>
+
+<!-- Toast notifications (POS/Kitchen/Admin call toast(message, type)) -->
+<div id="toast-stack"></div>
+
+<script>
+// Utility
+function fmtRM(n,currency){ return (currency||'RM')+' '+Number(n).toFixed(2); }
+
+function toast(message, type){
+  const stack = document.getElementById('toast-stack');
+  if(!stack) return;
+  const el = document.createElement('div');
+  el.className = 'toast-msg' + (type ? ' ' + type : '');
+  el.textContent = message;
+  stack.appendChild(el);
+  requestAnimationFrame(()=> el.classList.add('show'));
+  setTimeout(()=>{
+    el.classList.remove('show');
+    setTimeout(()=> el.remove(), 250);
+  }, 3000);
+}
+
+// ---- Theme toggle (light/dark) ----
+function applyThemeLogos(){
+  // Elements marked class="site-logo" with data-logo-dark/data-logo-light
+  // swap their src to match the current theme (see logo blocks in
+  // landing/menu/customer_* templates).
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+  document.querySelectorAll('.site-logo').forEach(img=>{
+    const url = theme === 'light' ? img.dataset.logoLight : img.dataset.logoDark;
+    if(url) img.src = url;
+  });
+}
+function updateThemeToggleIcon(){
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+  const icon = document.getElementById('theme-toggle-icon');
+  if(icon) icon.setAttribute('icon', theme === 'light' ? 'solar:moon-linear' : 'solar:sun-linear');
+}
+function toggleTheme(){
+  const html = document.documentElement;
+  const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  html.setAttribute('data-theme', next);
+  try{ localStorage.setItem('theme', next); }catch(e){}
+  applyThemeLogos();
+  updateThemeToggleIcon();
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  applyThemeLogos();
+  updateThemeToggleIcon();
+});
+
+// Lazy loading observer — fires on all img[loading="lazy"]
+(function(){
+  if(!window.IntersectionObserver) return;
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        const img = e.target;
+        if(img.dataset.src){ img.src=img.dataset.src; delete img.dataset.src; }
+        img.addEventListener("load",()=>img.classList.add("loaded"),{once:true});
+        img.addEventListener("error",()=>img.classList.add("loaded"),{once:true});
+        // If already loaded (cached)
+        if(img.complete) img.classList.add("loaded");
+        io.unobserve(img);
+      }
+    });
+  },{rootMargin:"200px"});
+  function observeImages(){
+    document.querySelectorAll('img[loading="lazy"]:not(.observed)').forEach(img=>{
+      img.classList.add("observed");
+      // If already has src set, still fade in
+      if(img.complete && img.naturalWidth) img.classList.add("loaded");
+      else io.observe(img);
+    });
+  }
+  document.addEventListener("DOMContentLoaded", observeImages);
+  // For dynamically added images
+  window._observeImages = observeImages;
+})();
+
+// Fade-up observer for sections
+(function(){
+  if(!window.IntersectionObserver) return;
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("visible"); io.unobserve(e.target); }});
+  },{threshold:0.1});
+  document.addEventListener("DOMContentLoaded",()=>{
+    document.querySelectorAll(".fade-up").forEach(el=>io.observe(el));
+  });
+})();
+</script>
+{% block scripts %}{% endblock %}
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/static/sw.js')
+      .then(r => console.log('SW registered'))
+      .catch(e => console.log('SW error:', e));
+  });
+}
+</script>
+</body>
+</html>

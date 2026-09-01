@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Token {{ order.token_no }}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Courier New',monospace;background:#fff;padding:10px;}
+.slip{width:80mm;margin:0 auto;padding:8mm 6mm;}
+.token-num{font-size:64px;font-weight:900;text-align:center;letter-spacing:4px;border:3px solid #000;padding:10px;margin:10px 0;}
+.rest{font-size:11px;text-align:center;margin-bottom:6px;}
+.rest b{font-size:14px;display:block;}
+hr.d{border:none;border-top:1px dashed #000;margin:6px 0;}
+table{width:100%;font-size:11px;border-collapse:collapse;}
+td{padding:2px 0;vertical-align:top;}
+td.r{text-align:right;}
+.footer{font-size:10px;text-align:center;margin-top:8px;}
+@media print{body{padding:0;}.no-print{display:none;}}
+</style>
+</head>
+<body>
+<div class="no-print" style="background:#333;padding:8px;display:flex;gap:8px;margin-bottom:10px;">
+  <button onclick="window.print()" style="background:#16a34a;color:#fff;border:none;padding:7px 16px;border-radius:4px;font-weight:700;cursor:pointer;">🖨 Print</button>
+  <button onclick="window.close()" style="background:#555;color:#fff;border:none;padding:7px 16px;border-radius:4px;cursor:pointer;">✕</button>
+</div>
+<div class="slip">
+  <div class="rest">
+    <b>{{ restaurant.name }}</b>
+    {{ restaurant.address }}
+  </div>
+  <hr class="d">
+  <div style="text-align:center;font-size:11px;">{{ order.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+  {% if order.order_type=='takeaway' and order.takeaway_no %}
+  <div style="text-align:center;font-size:11px;margin-top:3px;">Takeaway #{{ order.takeaway_no }}</div>
+  {% elif order.table_number %}
+  <div style="text-align:center;font-size:11px;margin-top:3px;">Table {{ order.table_number }}</div>
+  {% endif %}
+  {% if order.waiter_name %}
+  <div style="text-align:center;font-size:11px;">Waiter: {{ order.waiter_name }}</div>
+  {% endif %}
+  <hr class="d">
+  <div class="token-num">{{ order.token_no }}</div>
+  <hr class="d">
+  <table>
+    {% for i in order.items %}
+    <tr>
+      <td>{{ i.qty }}x {{ i.name }}</td>
+      <td class="r">RM{{ "%.2f"|format(i.line_total) }}</td>
+    </tr>
+    {% if i.addons %}<tr><td colspan="2" style="font-size:9px;color:#555;">+ {{ i.addons|map(attribute='name')|join(', ') }}</td></tr>{% endif %}
+    {% if i.notes %}<tr><td colspan="2" style="font-size:9px;font-style:italic;color:#666;">"{{ i.notes }}"</td></tr>{% endif %}
+    {% endfor %}
+  </table>
+  <hr class="d">
+  <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;">
+    <span>TOTAL</span><span>RM{{ "%.2f"|format(order.total) }}</span>
+  </div>
+  <hr class="d">
+  <div class="footer">** Please keep this slip **<br>Thank You!</div>
+</div>
+</body>
+</html>

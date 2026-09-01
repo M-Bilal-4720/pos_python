@@ -1,0 +1,90 @@
+/* ============================================================
+   THEME SYSTEM — light / dark mode toggle
+   ------------------------------------------------------------
+   Every page in this app was built dark-first, with colors as
+   hardcoded Tailwind utility classes and inline styles spread
+   across thousands of lines (landing, menu, POS, kitchen,
+   admin, bills...). Hand-converting every single one of those
+   classes to a light equivalent would be huge and easy to get
+   wrong in a way that quietly makes some text unreadable.
+
+   Instead, light mode is produced by inverting the rendered
+   page (filter: invert()) once, site-wide. That's a pixel-level
+   transform, so every existing contrast relationship (button
+   text on a colored button, heading text over a photo overlay,
+   panel text on a panel) is automatically preserved — it just
+   comes out light instead of dark. Nothing needs auditing.
+
+   Three kinds of things must NOT be inverted, so they're
+   inverted a *second* time to cancel it back out to their true
+   color:
+     1. Real images/photos/videos/QR codes  → .no-invert, img, video, canvas
+     2. The brand accent color (buttons, highlights, links)
+     3. The Touch 'n Go brand color (a fixed third-party brand color)
+   ============================================================ */
+
+html[data-theme="light"] {
+  color-scheme: light;
+  background: var(--bg-page-light, #f7f4ee);
+}
+
+html[data-theme="light"] body {
+  background: var(--bg-page-light, #f7f4ee);
+}
+
+/* #theme-root (see base.html) wraps every page's real content — it gets
+   inverted, NOT <body> itself, so the fixed-position theme toggle button
+   (a sibling of #theme-root, not a descendant) keeps behaving like a
+   normal viewport-fixed element in light mode instead of being dragged
+   down to the bottom of the whole scrollable page. */
+html[data-theme="light"] #theme-root {
+  filter: invert(1) hue-rotate(180deg);
+  background: var(--bg-page-light, #f7f4ee);
+  min-height: 100vh;
+}
+
+/* Cancel the inversion for real photography, logos, QR codes, video */
+html[data-theme="light"] img,
+html[data-theme="light"] video,
+html[data-theme="light"] canvas,
+html[data-theme="light"] .no-invert {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Cancel the inversion for the brand accent color + Touch 'n Go's brand
+   color, so buttons/highlights keep their real color in both themes
+   instead of coming out an inverted hue. */
+html[data-theme="light"] [class*="accent"],
+html[data-theme="light"] [class*="00b4d8"],
+html[data-theme="light"] [class*="0090a8"],
+html[data-theme="light"] [style*="C65A1E"],
+html[data-theme="light"] [style*="c65a1e"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* ---------- Theme toggle button (site-wide, floating) ---------- */
+.theme-toggle-btn{
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20,20,20,.9);
+  border: 1px solid rgba(255,255,255,.15);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+  transition: transform .2s ease;
+}
+.theme-toggle-btn:hover{ transform: scale(1.08); }
+.theme-toggle-btn:active{ transform: scale(0.94); }
+.theme-toggle-btn iconify-icon{ font-size: 20px; }
+/* Note: the button lives outside #theme-root (see base.html), so it's
+   never inside the inverted subtree and always looks the same regardless
+   of theme — it's UI chrome for switching themes, not page content. */

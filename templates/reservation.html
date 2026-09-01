@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Reserve a Table — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="min-h-screen" style="background:#0a0a0a;">
+  <header class="border-b border-white/5 px-4 py-4">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <a href="/" class="font-forum text-xl text-white uppercase tracking-wide">{{ restaurant.name }}</a>
+      <a href="/order" class="bg-accent text-white text-sm px-4 py-2 rounded-xl font-medium">Order Online</a>
+    </div>
+  </header>
+  <div class="max-w-2xl mx-auto px-4 py-12">
+    {% if success %}
+    <div class="text-center py-16">
+      <div class="w-20 h-20 rounded-full bg-green-500/10 border-2 border-green-500 flex items-center justify-center mx-auto mb-6 text-4xl">✓</div>
+      <h1 class="font-forum text-4xl text-white uppercase mb-3">Reservation Confirmed!</h1>
+      <p class="text-neutral-400 mb-4">We'll confirm via phone shortly.</p>
+      <div class="inline-block bg-[#111] border border-white/10 rounded-2xl px-8 py-4 mb-8">
+        <div class="text-neutral-500 text-sm mb-1">Reference Number</div>
+        <div class="font-forum text-3xl text-accent">{{ ref }}</div>
+      </div>
+      <div class="flex gap-4 justify-center">
+        <a href="/" class="bg-accent text-white px-6 py-3 rounded-xl font-medium">Back to Home</a>
+        <a href="/order" class="bg-[#111] border border-white/10 text-neutral-300 px-6 py-3 rounded-xl">Order Online</a>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center mb-10">
+      <h1 class="font-forum text-4xl text-white uppercase">Reserve a Table</h1>
+      <p class="text-neutral-500 mt-2">Fill in the details and we'll confirm your booking</p>
+    </div>
+    {% if error %}
+    <div class="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm text-center mb-6">{{ error }}</div>
+    {% endif %}
+    <form method="POST" class="bg-[#111] border border-white/5 rounded-2xl p-8 space-y-5">
+      <div class="grid sm:grid-cols-2 gap-5">
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Full Name *</label>
+          <input type="text" name="name" required placeholder="Ahmad bin Ali" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition">
+        </div>
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Phone *</label>
+          <input type="tel" name="phone" required placeholder="+60 1X-XXX XXXX" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Email (optional)</label>
+        <input type="email" name="email" placeholder="your@email.com" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition">
+      </div>
+      <div class="grid sm:grid-cols-2 gap-5">
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Date *</label>
+          <input type="date" name="date" required id="res-date" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition">
+        </div>
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Time *</label>
+          <select name="time" required class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition">
+            <option value="">— Select Time —</option>
+            <option value="11:00">11:00 AM</option>
+            <option value="12:00">12:00 PM</option>
+            <option value="13:00">1:00 PM</option>
+            <option value="14:00">2:00 PM</option>
+            <option value="15:00">3:00 PM</option>
+            <option value="18:00">6:00 PM</option>
+            <option value="19:00">7:00 PM</option>
+            <option value="20:00">8:00 PM</option>
+            <option value="21:00">9:00 PM</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-3">Number of Guests *</label>
+        <div class="flex gap-3 flex-wrap">
+          {% for n in [1,2,3,4,5,6,7,8] %}
+          <button type="button" onclick="setGuests({{ n }},this)" class="guest-btn px-5 py-2.5 rounded-xl border border-white/10 text-neutral-400 font-semibold transition hover:border-accent hover:text-accent {% if n==2 %}border-accent text-accent bg-accent/10{% endif %}">{{ n }}</button>
+          {% endfor %}
+          <input type="hidden" name="guests" id="guests-input" value="2">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Special Requests</label>
+        <textarea name="notes" rows="3" placeholder="e.g. Birthday celebration, dietary requirements..." class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition resize-none"></textarea>
+      </div>
+      <button type="submit" class="w-full bg-accent hover:shadow-[0_0_30px_rgba(198,90,30,0.4)] transition text-white py-4 rounded-xl font-semibold text-lg">Confirm Reservation</button>
+      <p class="text-center text-neutral-600 text-xs">We'll call you within 1 hour to confirm. For groups 8+ call {{ restaurant.phone }}</p>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function setGuests(n,btn){
+  document.querySelectorAll('.guest-btn').forEach(b=>{ b.classList.remove('border-accent','text-accent','bg-accent/10'); b.classList.add('border-white/10','text-neutral-400'); });
+  btn.classList.add('border-accent','text-accent','bg-accent/10');
+  document.getElementById('guests-input').value=n;
+}
+const d=document.getElementById('res-date');
+if(d){ d.min=new Date().toISOString().split('T')[0]; d.value=new Date().toISOString().split('T')[0]; }
+</script>
+{% endblock %}

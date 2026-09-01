@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}Kitchen Display — {{ restaurant.name }}
+<!-- Notification Popup -->
+<div id="notif-popup" class="notif-popup">
+  <div style="font-size:11px;opacity:0.8;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;" id="notif-title">New Order!</div>
+  <div id="notif-text" style="font-size:15px;font-weight:700;"></div>
+  <div id="notif-sub" style="font-size:12px;opacity:0.8;margin-top:3px;"></div>
+  <button onclick="document.getElementById('notif-popup').style.display='none'" 
+    style="position:absolute;top:8px;right:10px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">✕</button>
+</div>
+
+{% endblock %}
+{% block extra_head %}
+<style>
+  body { background:#0f172a!important; }
+  .k-header { background:#0f172a; border-bottom:2px solid #1e293b; }
+  .col-new     { border-top:4px solid #f59e0b; }
+  .col-prep    { border-top:4px solid #C65A1E; }
+  .col-ready   { border-top:4px solid #16a34a; }
+  /* Time-based card colors */
+  .ticket       { background:#1e293b; border:1px solid #334155; }
+  .ticket.t-ok  { border-left:4px solid #16a34a; }
+  .ticket.t-mid { border-left:4px solid #f59e0b; }
+  .ticket.t-late{ border-left:4px solid #ef4444; animation:pulseBorder 1.5s infinite; }
+  @keyframes pulseBorder { 0%,100%{ border-left-color:#ef4444; } 50%{ border-left-color:#fca5a5; } }
+  .timer-ok   { color:#4ade80; }
+  .timer-mid  { color:#fbbf24; }
+  .timer-late { color:#f87171; font-weight:800; }
+  /* Bell flash */
+  .bell-flash { animation:bellFlash 0.5s ease; }
+  @keyframes bellFlash { 0%,100%{background:#0f172a;} 50%{background:rgba(198,90,30,0.15);} }
+  /* New-order popup (shown by showKitchenNotif()) — was previously unstyled */
+  .notif-popup{
+    display:none; position:fixed; top:16px; right:16px; left:16px; z-index:9500;
+    max-width:360px; margin-left:auto;
+    background:#1e293b; border:1px solid #334155; border-left:4px solid #f59e0b;
+    color:#fff; border-radius:12px; padding:14px 40px 14px 16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);
+  }
+  @media (max-width:480px){
+    .notif-popup{max-width:none;}
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div class="min-h-screen" id="kds-root">
+  <div class="k-header flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4">
+    <div class="flex items-center gap-3">
+      {% if restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url %}
+      <img src="{{ restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url }}"
+           data-logo-dark="{{ restaurant.logo_dark_mode_url }}" data-logo-light="{{ restaurant.logo_light_mode_url }}"
+           class="site-logo w-10 h-10 rounded-full object-cover border-2 border-accent shrink-0" alt="logo">
+      {% else %}
+      <div class="w-10 h-10 rounded-full border-2 border-accent flex items-center justify-center font-forum text-accent text-lg shrink-0">I</div>
+      {% endif %}
+      <div>
+        <div class="font-forum text-white uppercase tracking-wide text-lg sm:text-xl">Kitchen Display</div>
+        <div class="text-xs text-neutral-500">{{ restaurant.name }}</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 sm:gap-4">
+      <div id="k-clock" class="text-white font-mono text-base sm:text-lg"></div>
+      <div id="k-count" class="text-xs text-neutral-500 whitespace-nowrap"></div>
+      <div id="k-status" class="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0"></div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="flex flex-wrap items-center gap-x-6 gap-y-1 px-4 sm:px-6 py-2 bg-[#0f172a] border-b border-[#1e293b] text-xs">
+    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span> &lt; 15 min</span>
+    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span> 15–30 min</span>
+    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> &gt; 30 min</span>
+    <span class="sm:ml-auto text-neutral-600 hidden sm:inline">Auto-refresh every 4s</span>
+  </div>
+
+  <div id="board" class="grid grid-cols-1 md:grid-cols-3 gap-0"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const COLS = [
+  {key:'confirmed', label:'New Orders',  cls:'col-new',  next:'preparing', nextLabel:'Start Preparing', icon:'🍳'},
+  {key:'preparing', label:'Preparing',   cls:'col-prep', next:'ready',     nextLabel:'Mark Ready',      icon:'✓'},
+  {key:'ready',     label:'Ready',       cls:'col-ready',next:'served',    nextLabel:'Served',          icon:'🍽'},
+];
+
+let _kFirstLoad = true;
+let _kCache = {};
+let _failCount = 0;
+
+function elapsed(isoStr){
+  const diff = Math.floor((Date.now() - new Date(isoStr))/1000);
+  const m = Math.floor(diff/60), s = diff%60;
+  return { mins:m, label: m+'m '+s+'s', cls: m<15?'timer-ok':m<30?'timer-mid':'timer-late', tcls: m<15?'t-ok':m<30?'t-mid':'t-late' };
+}
+
+async function load(){
+  const data = await apiFetch('/api/kitchen/orders');
+  if(!data){ _failCount++; document.getElementById('k-status').className='w-2.5 h-2.5 rounded-full bg-red-500'; return; }
+  _failCount = 0;
+  document.getElementById('k-status').className='w-2.5 h-2.5 rounded-full bg-green-500';
+
+  // Bell + notification logic
+  data.forEach(o=>{
+    const prev = _kCache[o.id];
+    if(!_kFirstLoad){
+      if(prev===undefined){
+        bellKitchen();
+        document.getElementById('kds-root').classList.add('bell-flash');
+        setTimeout(()=>document.getElementById('kds-root')?.classList.remove('bell-flash'),500);
+        showKitchenNotif(
+          '🔔 New Order!',
+          'Order #'+o.order_no.slice(-4)+' — '+o.items.map(i=>i.qty+'× '+i.name).join(', '),
+          o.source==='online'?'🌐 Online Order':o.source==='qr'?'📱 QR Order':'🖥 POS Order',
+          'warning'
+        );
+      } else if(prev!==o.status){
+        ringBell(1,'status');
+      }
+    }
+    _kCache[o.id] = o.status;
+  });
+  _kFirstLoad = false;
+
+  const total = data.length;
+  document.getElementById('k-count').textContent = total + ' active order' + (total!==1?'s':'');
+
+  const board = document.getElementById('board');
+  board.innerHTML = COLS.map(col=>{
+    const items = data.filter(o=>o.status===col.key);
+    return `
+    <div class="border-r border-[#1e293b] ${col.cls} p-4 min-h-[40vh] md:min-h-screen">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-white text-sm font-bold uppercase tracking-widest">${col.label}</h2>
+        <span class="bg-[#334155] text-white text-xs font-bold px-2.5 py-1 rounded-full">${items.length}</span>
+      </div>
+      <div class="space-y-3">
+        ${items.length===0
+          ? `<div class="text-[#334155] text-sm text-center py-12">No orders</div>`
+          : items.map(o=>{
+              const t = elapsed(o.created_at_iso||o.created_at);
+              return `
+              <div class="ticket ${t.tcls} rounded-xl p-3 lazy-fade visible">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-white font-bold text-sm">${o.order_no.slice(-4)}</span>
+                    ${o.source==='qr'?'<span class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">📱 QR</span>':''}
+                    ${o.source==='online'?'<span class="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">🌐 Online</span>':''}
+                    ${o.source==='grab'?'<span class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">Grab</span>':''}
+                    ${o.payment_status==='paid'?'<span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">✓ Paid</span>':o.payment_status==='pending_verification'?'<span class="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">⏳ Verify</span>':''}
+                  </div>
+                  <span class="${t.cls} text-xs font-mono font-bold">${t.label}</span>
+                </div>
+                ${o.table_number?`<div class="text-xs text-neutral-500 mb-2">🪑 Table ${o.table_number}${o.waiter_name?' · 👤 '+o.waiter_name:''}</div>`
+                  :o.customer_name && o.customer_name!=='Walk-In'?`<div class="text-xs text-neutral-500 mb-2">👤 ${o.customer_name}</div>`:''}
+                ${o.delivery_address?`<div class="text-xs text-yellow-500/80 mb-2">📍 ${o.delivery_address}</div>`:''}
+                <ul class="space-y-1 mb-3">
+                  ${o.items.map(i=>`
+                    <li class="text-sm text-neutral-200">
+                      <span class="font-bold text-white">${i.qty}×</span> ${i.name}
+                      <span class="text-neutral-500 text-xs">(${i.size})</span>
+                      ${i.addons?.length?`<div class="text-xs text-[#C65A1E] pl-4">+ ${i.addons.map(a=>a.name).join(', ')}</div>`:''}
+                      ${i.notes?`<div class="text-xs text-yellow-400 pl-4">⚠ ${i.notes}</div>`:''}
+                    </li>`).join('')}
+                </ul>
+                <button onclick="advance(${o.id},'${col.next}')"
+                  class="w-full bg-[#334155] hover:bg-accent hover:text-white text-neutral-200 rounded-lg py-2 text-xs font-bold transition duration-200">
+                  ${col.icon} ${col.nextLabel}
+                </button>
+              </div>`;
+            }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function advance(id,status){
+  const res = await apiFetch('/api/order/'+id+'/status',{
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status})
+  });
+  if(res) { toast('Order updated → '+status,'success'); load(); }
+}
+
+// Clock
+function updateClock(){
+  document.getElementById('k-clock').textContent = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock,1000); updateClock();
+
+// Bell
+function ringBell(times, type){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const freqs = type==='new'?[880,1100,1320]:[880,1100];
+    freqs.slice(0,times).forEach((f,i)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='sine';o.frequency.value=f;o.connect(g);g.connect(ctx.destination);
+      const s=ctx.currentTime+i*0.22;
+      g.gain.setValueAtTime(0.001,s);g.gain.exponentialRampToValueAtTime(0.35,s+0.02);g.gain.exponentialRampToValueAtTime(0.001,s+0.35);
+      o.start(s);o.stop(s+0.38);
+    });
+    if(type==='new') document.getElementById('kds-root').classList.add('bell-flash');
+    setTimeout(()=>document.getElementById('kds-root')?.classList.remove('bell-flash'),500);
+  }catch(e){}
+}
+
+async function apiFetch(url, opts){
+  const r = await fetch(url, opts||{});
+  if(!r.ok) return null;
+  return r.json();
+}
+
+// ═══════════════════════════
+// BELL + NOTIFICATION SYSTEM
+// ═══════════════════════════
+function bellKitchen() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [440, 550, 660].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const start = ctx.currentTime + i * 0.15;
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
+      osc.start(start);
+      osc.stop(start + 0.28);
+    });
+  } catch(e) {}
+}
+
+function bellReady() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [660, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const start = ctx.currentTime + i * 0.2;
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.4, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+      osc.start(start);
+      osc.stop(start + 0.35);
+    });
+  } catch(e) {}
+}
+
+function showKitchenNotif(title, text, sub, type) {
+  const el = document.getElementById('notif-popup');
+  el.className = 'notif-popup' + (type ? ' ' + type : '');
+  document.getElementById('notif-title').textContent = title;
+  document.getElementById('notif-text').textContent = text;
+  document.getElementById('notif-sub').textContent = sub || '';
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+load();
+setInterval(load,4000);
+</script>
+{% endblock %}

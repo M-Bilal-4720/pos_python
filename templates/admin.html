@@ -1,0 +1,1651 @@
+{% extends "base.html" %}
+{% block title %}Admin — {{ restaurant.name }}{% endblock %}
+{% block body %}
+<div class="flex min-h-screen">
+
+  <!-- Sidebar -->
+  <aside class="w-60 shrink-0 bg-[#111] border-r border-white/5 p-5 hidden md:flex flex-col">
+    <div class="flex items-center gap-2 mb-8">
+      {% if restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url %}
+      <img src="{{ restaurant.logo_dark_mode_url or restaurant.logo_light_mode_url }}"
+           data-logo-dark="{{ restaurant.logo_dark_mode_url }}" data-logo-light="{{ restaurant.logo_light_mode_url }}"
+           class="site-logo w-9 h-9 rounded-full object-cover border-2 border-accent" alt="logo">
+      {% else %}
+      <div class="w-9 h-9 rounded-full border-2 border-accent flex items-center justify-center font-forum text-accent">I</div>
+      {% endif %}
+      <div>
+        <div class="font-forum text-sm text-white uppercase leading-tight">{{ restaurant.name }}</div>
+        <div class="text-[10px] text-neutral-500 uppercase tracking-wide">Admin Console</div>
+      </div>
+    </div>
+    <nav class="space-y-1 text-sm">
+      <button onclick="showTab('dashboard')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-white bg-accent/10 border border-accent/30">
+        <iconify-icon icon="solar:widget-5-linear"></iconify-icon> Dashboard
+      </button>
+      <button onclick="showTab('orders')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:bill-list-linear"></iconify-icon> Orders
+      </button>
+      <button onclick="showTab('menu')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:chef-hat-linear"></iconify-icon> Menu
+      </button>
+      <button onclick="showTab('addons')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:tag-linear"></iconify-icon> Add-ons
+      </button>
+      <button onclick="showTab('categories')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:layers-linear"></iconify-icon> Categories
+      </button>
+      <button onclick="showTab('tables')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:qr-code-linear"></iconify-icon> Tables &amp; QR
+      </button>
+      <button onclick="showTab('invoices')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:bill-list-linear"></iconify-icon> Invoices
+      </button>
+      <button onclick="showTab('platforms')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:delivery-linear"></iconify-icon> Grab / FoodPanda
+      </button>
+      <button onclick="showTab('waiters')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:users-group-rounded-linear"></iconify-icon> Waiters
+      </button>
+      <button onclick="showTab('customers')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:user-id-linear"></iconify-icon> Customers
+      </button>
+      <button onclick="showTab('marketing')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:letter-linear"></iconify-icon> Marketing
+      </button>
+      <button onclick="showTab('security')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:shield-check-linear"></iconify-icon> Security
+      </button>
+      <button onclick="showTab('reports')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:chart-2-linear"></iconify-icon> Reports
+      </button>
+      <button onclick="showTab('settings')" class="admin-tab-btn w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-2.5 text-neutral-400 hover:text-white hover:bg-white/5">
+        <iconify-icon icon="solar:settings-linear"></iconify-icon> Site Settings
+      </button>
+    </nav>
+    <div class="mt-auto space-y-1 pt-6 border-t border-white/5 text-sm">
+      <a href="/admin/logout" class="block px-3 py-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/5">Logout</a>
+      <a href="/" class="block px-3 py-2.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">Site</a>
+      <a href="/pos" class="block px-3 py-2.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">POS</a>
+      <a href="/kitchen" class="block px-3 py-2.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">Kitchen</a>
+    </div>
+  </aside>
+
+  <!-- Mobile tab bar -->
+  <div class="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#111] border-b border-white/5 flex overflow-x-auto px-2">
+    <button onclick="showTab('dashboard')" class="admin-tab-btn shrink-0 px-3 py-3 text-xs text-white">Dashboard</button>
+    <button onclick="showTab('orders')" class="admin-tab-btn shrink-0 px-3 py-3 text-xs text-neutral-400">Orders</button>
+    <button onclick="showTab('menu')" class="admin-tab-btn shrink-0 px-3 py-3 text-xs text-neutral-400">Menu</button>
+    <button onclick="showTab('addons')" class="admin-tab-btn shrink-0 px-3 py-3 text-xs text-neutral-400">Add-ons</button>
+    <button onclick="showTab('categories')" class="admin-tab-btn shrink-0 px-3 py-3 text-xs text-neutral-400">Categories</button>
+    <button onclick="showTab('tables')" class="admin-tab-btn shrink-0 px-3 py-3 text-xs text-neutral-400">Tables</button>
+    <button onclick="showTab('settings')" class="admin-tab-btn shrink-0 px-3 py-3 text-xs text-neutral-400">Settings</button>
+  </div>
+
+  <!-- Main content -->
+  <main class="flex-1 p-6 md:pt-6 pt-16 max-w-6xl">
+
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="admin-tab">
+      <h1 class="font-forum text-3xl text-white uppercase mb-6">Dashboard</h1>
+
+      <div class="grid sm:grid-cols-4 gap-4 mb-8">
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <div class="text-xs text-neutral-500 uppercase">Today's Sales (paid)</div>
+          <div class="text-2xl text-accent font-medium mt-1">RM{{ "%.2f"|format(today_sales) }}</div>
+        </div>
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <div class="text-xs text-neutral-500 uppercase">Orders Today</div>
+          <div class="text-2xl text-white font-medium mt-1">{{ today_orders_count }}</div>
+        </div>
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <div class="text-xs text-neutral-500 uppercase">Unpaid Orders Today</div>
+          <div class="text-2xl text-yellow-400 font-medium mt-1">{{ pending_payment }}</div>
+        </div>
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <div class="text-xs text-neutral-500 uppercase">Menu Items</div>
+          <div class="text-2xl text-white font-medium mt-1">{{ items|length }}</div>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-5 mb-8">
+        <!-- 7-day trend -->
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <h3 class="text-white text-sm uppercase tracking-wide mb-4">Last 7 Days — Sales</h3>
+          <div class="flex items-end gap-3 h-40">
+            {% for t in trend %}
+            <div class="flex-1 flex flex-col items-center justify-end h-full">
+              <div class="text-[10px] text-neutral-500 mb-1">{{ "%.0f"|format(t.value) }}</div>
+              <div class="w-full bg-accent/80 rounded-t-md" style="height: {{ (t.value / max_trend * 100)|round(1) }}%; min-height:2px;"></div>
+              <div class="text-[10px] text-neutral-500 mt-2">{{ t.label }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <!-- category sales -->
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <h3 class="text-white text-sm uppercase tracking-wide mb-4">Today's Sales by Category</h3>
+          <div class="space-y-3">
+            {% for cat, val in cat_sales.items() %}
+            <div>
+              <div class="flex justify-between text-xs text-neutral-400 mb-1">
+                <span>{{ cat }}</span><span class="text-accent">RM{{ "%.2f"|format(val) }}</span>
+              </div>
+              <div class="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div class="h-full bg-accent rounded-full" style="width: {{ (val / max_cat_sales * 100)|round(1) }}%"></div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Table status -->
+      <h3 class="text-white text-sm uppercase tracking-wide mb-3">Table Status</h3>
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-8">
+        {% for t in tables %}
+        <div class="bg-[#111] border rounded-xl p-3 text-center {{ 'border-accent/50' if t.status=='occupied' else 'border-white/5' }}">
+          <div class="text-white text-sm">{{ t.label }}</div>
+          <div class="text-xs mt-1 {{ 'text-accent' if t.status=='occupied' else 'text-green-400' }}">{{ t.status }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Recent orders -->
+      <h3 class="text-white text-sm uppercase tracking-wide mb-3">Recent Orders</h3>
+      <div class="bg-[#111] border border-white/5 rounded-xl overflow-x-auto">
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead class="bg-white/5 text-neutral-400 text-xs uppercase">
+            <tr><th class="text-left p-3">Order</th><th class="text-left p-3">Type</th><th class="text-left p-3">Status</th><th class="text-left p-3">Payment</th><th class="text-left p-3">Total</th><th class="text-left p-3">Time</th><th class="p-3"></th></tr>
+          </thead>
+          <tbody>
+            {% for o in recent_orders %}
+            <tr class="border-t border-white/5">
+              <td class="p-3 text-white whitespace-nowrap">{{ o.order_no }}</td>
+              <td class="p-3 text-neutral-400 whitespace-nowrap">{{ o.order_type }}{% if o.table_number %} (T{{ o.table_number }}){% endif %}</td>
+              <td class="p-3 text-accent">{{ o.status }}</td>
+              <td class="p-3"><span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-500/10 text-green-400' if o.payment_status=='paid' else 'bg-yellow-500/10 text-yellow-400' }}">{{ o.payment_status }}</span></td>
+              <td class="p-3 text-neutral-300">RM{{ "%.2f"|format(o.total) }}</td>
+              <td class="p-3 text-neutral-500">{{ o.created_at.strftime('%H:%M') }}</td>
+              <td class="p-3"><a href="/bill/{{ o.id }}" target="_blank" class="text-accent text-xs">Bill</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ORDERS -->
+    <section id="tab-orders" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Orders</h1>
+        <select id="orders-filter" onchange="loadOrdersTab()" class="bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="preparing">Preparing</option>
+          <option value="ready">Ready</option>
+          <option value="served">Served</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="bg-[#111] border border-white/5 rounded-xl overflow-x-auto">
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead class="bg-white/5 text-neutral-400 text-xs uppercase">
+            <tr><th class="text-left p-3">Order</th><th class="text-left p-3">Items</th><th class="text-left p-3">Type</th><th class="text-left p-3">Status</th><th class="text-left p-3">Payment</th><th class="text-left p-3">Total</th><th class="text-left p-3">Time</th><th class="p-3"></th></tr>
+          </thead>
+          <tbody id="orders-tab-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MENU -->
+    <section id="tab-menu" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Menu Items</h1>
+        <div class="flex gap-3 items-center">
+          <input id="admin-menu-search" oninput="adminMenuSearch()" placeholder="Search by name or dish no..." autocomplete="off"
+            class="bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none w-56 focus:border-accent">
+          <select id="admin-menu-cat" onchange="adminMenuSearch()" class="bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+            <option value="">All Categories</option>
+            {% for cat in categories %}<option value="{{ cat.name }}">{{ cat.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <button onclick="openItemModal()" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white text-xs px-4 py-2.5 rounded-lg">+ Add Item</button>
+      </div>
+      <div class="bg-[#111] border border-white/5 rounded-xl overflow-x-auto">
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead class="bg-white/5 text-neutral-400 text-xs uppercase">
+            <tr><th class="text-left p-3"></th><th class="text-left p-3">Name</th><th class="text-left p-3">Category</th><th class="text-left p-3">Full</th><th class="text-left p-3">Half</th><th class="text-left p-3">Status</th><th class="p-3"></th></tr>
+          </thead>
+          <tbody id="menu-table-body">
+            {% for item in items %}
+            <tr class="border-t border-white/5">
+              <td class="p-2"><img src="{{ item.image_url }}" loading="lazy" class="w-12 h-12 object-cover rounded-lg" alt=""></td>
+              <td class="p-3 text-white">{{ item.name }}</td>
+              <td class="p-3 text-neutral-400">{{ item.category }}</td>
+              <td class="p-3 text-neutral-400">RM{{ "%.2f"|format(item.price_full) }}</td>
+              <td class="p-3 text-neutral-400">RM{{ "%.2f"|format(item.price_half) }}</td>
+              <td class="p-3"><button onclick="quickToggleItem({{ item.id }}, this)" class="text-xs px-3 py-1.5 rounded-full font-medium transition {{ 'bg-green-500/10 text-green-400' if item.available else 'bg-red-500/10 text-red-400' }}">{{ '✓ Available' if item.available else '✗ Hidden' }}</button></td>
+              <td class="p-3 text-right whitespace-nowrap">
+                <button onclick='openItemModal({{ {"id":item.id,"name":item.name,"category":item.category,"price_full":item.price_full,"price_half":item.price_half,"available":item.available,"image_url":item.image_url,"description":item.description,"rating":item.rating,"images":item.images}|tojson }})' class="text-accent text-xs mr-2">Edit</button>
+                <button onclick="deleteItem({{ item.id }})" class="text-red-400 text-xs">Delete</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ADDONS -->
+    <section id="tab-addons" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Add-ons</h1>
+        <button onclick="openAddonModal()" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white text-xs px-4 py-2.5 rounded-lg">+ Add Add-on</button>
+      </div>
+      <p class="text-neutral-500 text-sm mb-4">These appear as optional extras when a customer or POS staff selects an item — e.g. Extra Cheese, Less Spicy, Boneless.</p>
+      <div class="bg-[#111] border border-white/5 rounded-xl overflow-x-auto">
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead class="bg-white/5 text-neutral-400 text-xs uppercase">
+            <tr><th class="text-left p-3 w-12"></th><th class="text-left p-3">Name</th><th class="text-left p-3">Price</th><th class="text-left p-3">Status</th><th class="p-3"></th></tr>
+          </thead>
+          <tbody>
+            {% for a in addons %}
+            <tr class="border-t border-white/5">
+              <td class="p-2 w-12"><img src="{{ a.image_url }}" class="w-10 h-10 rounded-lg object-cover {{ 'hidden' if not a.image_url }}" alt=""></td>
+              <td class="p-3 text-white">{{ a.name }}</td>
+              <td class="p-3 text-neutral-400">{{ ('RM%.2f'|format(a.price)) if a.price else 'Free' }}</td>
+              <td class="p-3"><span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-500/10 text-green-400' if a.available else 'bg-red-500/10 text-red-400' }}">{{ 'Active' if a.available else 'Hidden' }}</span></td>
+              <td class="p-3 text-right">
+                <button onclick='openAddonModal({{ {"id":a.id,"name":a.name,"price":a.price,"available":a.available,"image_url":a.image_url}|tojson }})' class="text-accent text-xs mr-2">Edit</button>
+                <button onclick="deleteAddon({{ a.id }})" class="text-red-400 text-xs">Delete</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TABLES / QR -->
+    <section id="tab-tables" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Tables &amp; QR Codes</h1>
+        <button onclick="addTableModal()" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition text-white text-xs px-4 py-2.5 rounded-lg">+ Add Table</button>
+      </div>
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-3" id="tables-grid">
+        {% for t in tables %}
+        <div class="bg-[#111] border border-white/5 hover:border-accent/40 rounded-xl p-3 text-center transition duration-300 relative group">
+          <a href="/admin/qr/{{ t.number }}.png" download="table-{{ t.number }}-qr.png">
+            <img src="/admin/qr/{{ t.number }}.png" class="w-full rounded-lg bg-white p-1">
+          </a>
+          <div class="text-xs text-neutral-400 mt-2">{{ t.label }}</div>
+          <div class="text-[10px] mt-0.5 {{ 'text-accent' if t.status=='occupied' else 'text-green-400' }}">{{ t.status }}</div>
+          <button onclick="deleteTable({{ t.id }})" class="absolute top-1 right-1 bg-red-500/80 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition">✕</button>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- CATEGORIES -->
+    <section id="tab-categories" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Categories</h1>
+        <button onclick="openCategoryModal()" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white text-xs px-4 py-2.5 rounded-lg">+ Add Category</button>
+      </div>
+      <p class="text-neutral-500 text-sm mb-4">Categories appear as sections on the ordering menu, in this order. Deleting a category requires moving its menu items first.</p>
+      <div class="grid sm:grid-cols-3 gap-4">
+        {% for c in category_objs %}
+        <div class="bg-[#111] border border-white/5 rounded-xl overflow-hidden">
+          <img src="{{ c.image_url }}" loading="lazy" class="w-full h-28 object-cover" alt="{{ c.name }}">
+          <div class="p-3 flex items-center justify-between">
+            <div class="text-white text-sm">{{ c.name }}</div>
+            <div class="flex gap-2">
+              <button onclick='openCategoryModal({{ {"id":c.id,"name":c.name,"image_url":c.image_url,"sort_order":c.sort_order}|tojson }})' class="text-accent text-xs">Edit</button>
+              <button onclick="deleteCategory({{ c.id }})" class="text-red-400 text-xs">Delete</button>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="tab-settings" class="admin-tab hidden">
+      <h1 class="font-forum text-3xl text-white uppercase mb-6">Site Settings</h1>
+      <div class="bg-[#111] border border-white/5 rounded-xl p-6 max-w-xl space-y-6">
+
+        <!-- Identity -->
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide">Restaurant Name</label>
+            <input id="s-site-name" value="{{ settings.site_name }}" placeholder="{{ restaurant.name }}" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-2 text-white focus:border-accent outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide">Tagline</label>
+            <input id="s-site-tagline" value="{{ settings.site_tagline }}" placeholder="{{ restaurant.tagline }}" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-2 text-white focus:border-accent outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide">Address</label>
+            <input id="s-site-address" value="{{ settings.site_address }}" placeholder="{{ restaurant.address }}" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-2 text-white focus:border-accent outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide">Phone</label>
+            <input id="s-site-phone" value="{{ settings.site_phone }}" placeholder="{{ restaurant.phone }}" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-2 text-white focus:border-accent outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide">Short Description</label>
+          <input id="s-site-description" value="{{ settings.site_description }}" placeholder="e.g. Authentic Pakistani BBQ, karahi &amp; biryani in KL" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-2 text-white focus:border-accent outline-none">
+        </div>
+
+        <!-- Theme -->
+        <div class="pt-4 border-t border-white/5">
+          <h4 class="text-xs text-neutral-500 uppercase tracking-widest mb-4">🎨 Appearance</h4>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Primary / Accent Color</label>
+              <div class="flex items-center gap-3 mt-2">
+                <input id="s-color-primary" type="color" value="{{ settings.color_primary or '#C65A1E' }}" class="w-12 h-10 rounded-lg border border-white/10 bg-[#0a0a0a] cursor-pointer">
+                <input id="s-color-primary-hex" value="{{ settings.color_primary or '#C65A1E' }}" oninput="document.getElementById('s-color-primary').value=this.value" class="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none">
+              </div>
+              <p class="text-[11px] text-neutral-600 mt-1">Used for buttons, links, and highlights sitewide.</p>
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Default Theme for Visitors</label>
+              <select id="s-theme-default" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-2 text-white focus:border-accent outline-none">
+                <option value="dark" {{ 'selected' if settings.theme_default != 'light' }}>Dark</option>
+                <option value="light" {{ 'selected' if settings.theme_default == 'light' }}>Light</option>
+              </select>
+              <p class="text-[11px] text-neutral-600 mt-1">Applies until a visitor toggles it themselves (🌙/☀️ button, bottom-right of every page).</p>
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Button Color</label>
+              <div class="flex items-center gap-3 mt-2">
+                <input id="s-color-button" type="color" value="{{ settings.color_button or settings.color_primary or '#C65A1E' }}" class="w-12 h-10 rounded-lg border border-white/10 bg-[#0a0a0a] cursor-pointer">
+                <input id="s-color-button-hex" value="{{ settings.color_button }}" placeholder="Same as Primary/Accent Color" oninput="document.getElementById('s-color-button').value=this.value||'{{ settings.color_primary or '#C65A1E' }}'" class="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none">
+              </div>
+              <p class="text-[11px] text-neutral-600 mt-1">Fill color for buttons only, if you want it different from the accent color above. Leave blank to match.</p>
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Dark Mode Background</label>
+              <div class="flex items-center gap-3 mt-2">
+                <input id="s-color-bg-dark" type="color" value="{{ settings.color_bg_dark or '#0a0a0a' }}" class="w-12 h-10 rounded-lg border border-white/10 bg-[#0a0a0a] cursor-pointer">
+                <input id="s-color-bg-dark-hex" value="{{ settings.color_bg_dark }}" placeholder="#0a0a0a (default)" oninput="document.getElementById('s-color-bg-dark').value=this.value||'#0a0a0a'" class="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none">
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Light Mode Background</label>
+              <div class="flex items-center gap-3 mt-2">
+                <input id="s-color-bg-light" type="color" value="{{ settings.color_bg_light or '#f7f4ee' }}" class="w-12 h-10 rounded-lg border border-white/10 bg-[#0a0a0a] cursor-pointer">
+                <input id="s-color-bg-light-hex" value="{{ settings.color_bg_light }}" placeholder="#f7f4ee (default)" oninput="document.getElementById('s-color-bg-light').value=this.value||'#f7f4ee'" class="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none">
+              </div>
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Logo — Dark Mode</label>
+              <div class="flex items-center gap-4 mt-2">
+                <img id="s-logo-dark-preview" src="{{ settings.logo_dark_mode_url or settings.logo_url }}" class="w-16 h-16 rounded-full object-cover border border-white/10 bg-[#0a0a0a] {{ 'hidden' if not (settings.logo_dark_mode_url or settings.logo_url) }}">
+                <input type="file" accept="image/*" onchange="uploadAndSet(this, 's-logo-dark-url', 's-logo-dark-preview')" class="text-xs text-neutral-400">
+              </div>
+              <input type="hidden" id="s-logo-dark-url" value="{{ settings.logo_dark_mode_url or settings.logo_url }}">
+              <p class="text-[11px] text-neutral-600 mt-1">Shown on the dark background — usually a white/light logo.</p>
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Logo — Light Mode</label>
+              <div class="flex items-center gap-4 mt-2">
+                <img id="s-logo-light-preview" src="{{ settings.logo_light_mode_url }}" class="w-16 h-16 rounded-full object-cover border border-white/10 bg-white {{ 'hidden' if not settings.logo_light_mode_url }}">
+                <input type="file" accept="image/*" onchange="uploadAndSet(this, 's-logo-light-url', 's-logo-light-preview')" class="text-xs text-neutral-400">
+              </div>
+              <input type="hidden" id="s-logo-light-url" value="{{ settings.logo_light_mode_url }}">
+              <p class="text-[11px] text-neutral-600 mt-1">Shown on the light background — usually a dark/colored logo. Falls back to the dark-mode logo if left empty.</p>
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Favicon (browser tab icon)</label>
+              <div class="flex items-center gap-4 mt-2">
+                <img id="s-favicon-preview" src="{{ settings.favicon_url }}" class="w-16 h-16 rounded-lg object-cover border border-white/10 bg-[#0a0a0a] {{ 'hidden' if not settings.favicon_url }}">
+                <input type="file" accept="image/*" onchange="uploadAndSet(this, 's-favicon-url', 's-favicon-preview')" class="text-xs text-neutral-400">
+              </div>
+              <input type="hidden" id="s-favicon-url" value="{{ settings.favicon_url }}">
+              <p class="text-[11px] text-neutral-600 mt-1">Square image works best. Leave empty to keep the default icon. Browsers cache favicons — a hard refresh (Ctrl+Shift+R) may be needed to see the change.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customer Display -->
+        <div class="col-span-2 mt-4 pt-4 border-t border-white/5">
+          <h4 class="text-xs text-neutral-500 uppercase tracking-widest mb-4">📺 Customer Display Screen</h4>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Display Wallpaper</label>
+              <div class="flex items-center gap-3 mt-2">
+                <img id="s-display-bg-preview" src="{{ settings.display_bg_url }}" class="w-20 h-12 rounded border border-white/10 bg-white/5 object-cover" onerror="this.style.display='none'">
+                <input type="file" accept="image/*" onchange="uploadAndSet(this,'s-display-bg-url','s-display-bg-preview')" class="text-xs text-neutral-400">
+              </div>
+              <input type="hidden" id="s-display-bg-url" value="{{ settings.display_bg_url }}">
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Idle Screen Message</label>
+              <input id="s-display-idle-text" value="{{ settings.display_idle_text }}" placeholder="Welcome!" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm mt-2 text-white focus:border-accent outline-none">
+              <a href="/customer-display" target="_blank" class="text-xs text-accent hover:underline mt-2 block">📺 Open Display →</a>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide">Footer Tagline</label>
+          <input id="s-footer-text" value="{{ settings.footer_text }}" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-2">
+        </div>
+
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide">Homepage Hero Background</label>
+          <div class="flex items-center gap-4 mt-2">
+            <img id="s-hero-preview" src="{{ settings.hero_image_url }}" class="w-24 h-16 rounded-lg object-cover border border-white/10">
+            <input type="file" accept="image/*" onchange="uploadAndSet(this, 's-hero-url', 's-hero-preview')" class="text-xs text-neutral-400">
+          </div>
+          <input type="hidden" id="s-hero-url" value="{{ settings.hero_image_url }}">
+        </div>
+
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide">Our Story Image</label>
+          <div class="flex items-center gap-4 mt-2">
+            <img id="s-about-img-preview" src="{{ settings.about_image_url }}" class="w-24 h-16 rounded-lg object-cover border border-white/10">
+            <input type="file" accept="image/*" onchange="uploadAndSet(this, 's-about-img-url', 's-about-img-preview')" class="text-xs text-neutral-400">
+          </div>
+          <input type="hidden" id="s-about-img-url" value="{{ settings.about_image_url }}">
+        </div>
+
+        <div>
+          <label class="text-xs text-neutral-500 uppercase tracking-wide">Our Story Text</label>
+          <textarea id="s-about-text" rows="4" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-2">{{ settings.about_text }}</textarea>
+        </div>
+
+        <button onclick="saveSettings()" class="w-full bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white py-2.5 rounded-lg text-sm font-medium">Save Settings</button>
+        <p id="settings-saved-msg" class="hidden text-green-400 text-xs text-center">Saved!</p>
+
+        <div class="mt-6 pt-6 border-t border-white/10">
+          <div class="text-white text-sm font-medium mb-4 flex items-center gap-2">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Touch_%27n_Go_eWallet_Logo.svg/200px-Touch_%27n_Go_eWallet_Logo.svg.png" class="h-5" onerror="this.style.display='none'" alt="TnG">
+            Touch 'n Go eWallet Settings
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Your TnG Business QR Code (upload image)</label>
+              <div class="flex items-start gap-4 mt-2">
+                {% if settings.tng_qr_url %}
+                <div class="p-2 bg-white rounded-lg"><img id="s-tng-qr-preview" src="{{ settings.tng_qr_url }}" class="w-28 h-28 object-contain" alt="TnG QR"></div>
+                {% else %}
+                <div id="s-tng-qr-preview-wrap" class="w-28 h-28 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-neutral-600 text-xs text-center p-2">
+                  No QR yet
+                </div>
+                {% endif %}
+                <div class="flex-1">
+                  <input type="file" accept="image/*" onchange="uploadAndSet(this,'s-tng-qr-url','s-tng-qr-preview')" class="text-xs text-neutral-400 mb-2">
+                  <p class="text-[10px] text-neutral-600 leading-relaxed">Open TnG app → Business → QR Code → Save/Screenshot → Upload here. This QR will show on your ordering page when customers choose TnG.</p>
+                </div>
+              </div>
+              <input type="hidden" id="s-tng-qr-url" value="{{ settings.tng_qr_url }}">
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">TnG Registered Phone (shown to customer)</label>
+              <input id="s-tng-phone" value="{{ settings.tng_phone }}" placeholder="+60 1X-XXX XXXX" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">TnG Account Name</label>
+              <input id="s-tng-name" value="{{ settings.tng_name }}" placeholder="Islamabad Restaurant & Cafe" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+            <div class="bg-[#00b4d8]/5 border border-[#00b4d8]/20 rounded-xl p-3 text-xs text-neutral-400 leading-relaxed">
+              <b class="text-[#00b4d8]">How it works:</b> Customer selects TnG → sees your QR → scans &amp; pays in TnG app → enters Transaction ID → order saved as "pending verification" → you confirm in TnG app → mark paid in Admin/POS.
+            </div>
+          </div>
+          <button onclick="saveTngSettings()" class="mt-4 w-full bg-[#00b4d8] hover:bg-[#0090a8] transition text-white py-2.5 rounded-lg text-sm font-medium">Save TnG Settings</button>
+        </div>
+
+        <!-- HitPay Config -->
+        <div class="mt-6 pt-6 border-t border-white/10">
+          <div class="text-white text-sm font-medium mb-4">⚡ HitPay Integration (TnG · FPX · Card · GrabPay)</div>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">API Key</label>
+              <input id="hp-key" type="password" placeholder="From HitPay Dashboard → Settings → API Keys" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1 font-mono">
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Salt Value (for webhook verification)</label>
+              <input id="hp-salt" type="password" placeholder="From HitPay Dashboard → Settings → API Keys → Salt" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1 font-mono">
+            </div>
+            <div>
+              <label class="flex items-center gap-2 text-sm text-neutral-400">
+                <input type="checkbox" id="hp-sandbox" checked> Use Sandbox (testing) — uncheck for live production
+              </label>
+            </div>
+            <div class="bg-green-500/5 border border-green-500/20 rounded-xl p-3 text-xs text-neutral-400 leading-relaxed">
+              <b class="text-green-400">Setup steps:</b><br>
+              1. Create account at <a href="https://hitpayapp.com" target="_blank" class="text-accent underline">hitpayapp.com</a> — no monthly fee, 1.9%/txn<br>
+              2. Get verified (1-3 business days)<br>
+              3. Go to Settings → API Keys → copy API Key + Salt<br>
+              4. Dashboard → Payment Methods → enable TnG, FPX, Card<br>
+              5. Dashboard → Developers → Webhooks → add: <code class="text-accent">https://yourdomain.com/api/hitpay/webhook</code><br>
+              6. Paste keys here, uncheck Sandbox, save
+            </div>
+          </div>
+          <button onclick="saveHitPayConfig()" class="mt-4 w-full bg-green-500 hover:bg-green-600 transition text-white py-2.5 rounded-lg text-sm font-medium">Save HitPay Config</button>
+        </div>
+
+        <!-- SMTP / Email -->
+        <div class="mt-6 pt-6 border-t border-white/10">
+          <div class="text-white text-sm font-medium mb-4">✉️ Email (SMTP)</div>
+          <p class="text-xs text-neutral-500 mb-3">Used for customer email-verification links and bulk marketing emails (Marketing tab).</p>
+          <div class="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">SMTP Host</label>
+              <input id="s-smtp-host" value="{{ settings.smtp_host or 'smtp.gmail.com' }}" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">SMTP Port</label>
+              <input id="s-smtp-port" value="{{ settings.smtp_port or '587' }}" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">Sender Email</label>
+              <input id="s-smtp-user" value="{{ settings.smtp_user }}" placeholder="you@gmail.com" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1">
+            </div>
+            <div>
+              <label class="text-xs text-neutral-500 uppercase tracking-wide">App Password</label>
+              <input id="s-smtp-pass" type="password" value="{{ settings.smtp_pass }}" placeholder="16-character app password" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1 font-mono">
+            </div>
+          </div>
+          <div class="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3 text-xs text-neutral-400 leading-relaxed mt-3">
+            <b class="text-blue-400">Gmail setup:</b> Google Account → Security → 2-Step Verification (turn on) → App Passwords → create one for "Mail" → paste the 16-character code above as App Password (not your normal Gmail password).
+          </div>
+          <button onclick="saveSettings()" class="mt-4 w-full bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition text-white py-2.5 rounded-lg text-sm font-medium">Save Email Settings</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVOICES -->
+    <section id="tab-invoices" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+        <h1 class="font-forum text-3xl text-white uppercase">Invoices</h1>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input type="date" id="inv-from" class="bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-xs text-white">
+          <input type="date" id="inv-to"   class="bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-xs text-white">
+          <select id="inv-source" class="bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-xs text-white">
+            <option value="all">All Sources</option>
+            <option value="pos">POS</option>
+            <option value="qr">QR</option>
+            <option value="online">Online</option>
+            <option value="grab">GrabFood</option>
+            <option value="foodpanda">FoodPanda</option>
+          </select>
+          <button onclick="exportCSV()" class="flex items-center gap-1.5 bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition text-xs px-4 py-2 rounded-lg font-medium">
+            <iconify-icon icon="solar:download-linear"></iconify-icon> Export CSV
+          </button>
+        </div>
+      </div>
+      <div class="bg-[#111] border border-white/5 rounded-xl overflow-x-auto">
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead class="bg-white/5 text-neutral-400 text-xs uppercase">
+            <tr>
+              <th class="text-left p-3">Invoice</th>
+              <th class="text-left p-3">Source</th>
+              <th class="text-left p-3">Customer</th>
+              <th class="text-left p-3">Waiter</th>
+              <th class="text-left p-3">Table</th>
+              <th class="text-left p-3">Method</th>
+              <th class="text-left p-3">Subtotal</th>
+              <th class="text-left p-3">Discount</th>
+              <th class="text-left p-3">Total</th>
+              <th class="text-left p-3">Date</th>
+              <th class="p-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in completed_invoices %}
+            <tr class="border-t border-white/5 hover:bg-white/3 transition">
+              <td class="p-3 text-white font-medium">{{ o.order_no }}</td>
+              <td class="p-3">
+                <span class="text-xs px-2 py-1 rounded-full {% if o.source=='grab' %}bg-green-500/10 text-green-400{% elif o.source=='foodpanda' %}bg-red-500/10 text-red-400{% elif o.source=='qr' %}bg-green-500/10 text-green-400{% elif o.source=='online' %}bg-blue-500/10 text-blue-400{% else %}bg-yellow-500/10 text-yellow-400{% endif %}">
+                  {% if o.source=='grab' %}🟢 Grab{% elif o.source=='foodpanda' %}🔴 FoodPanda{% elif o.source=='qr' %}📱 QR{% elif o.source=='online' %}🌐 Online{% else %}🖥 POS{% endif %}
+                </span>
+              </td>
+              <td class="p-3 text-neutral-400">{{ o.customer_name or 'Walk-In' }}</td>
+              <td class="p-3 text-neutral-400">{{ o.waiter_name or '—' }}</td>
+              <td class="p-3 text-neutral-400">{{ o.table_number or '—' }}</td>
+              <td class="p-3 text-neutral-400">{{ o.payment_method|title }}</td>
+              <td class="p-3 text-neutral-400">RM{{ "%.2f"|format(o.subtotal) }}</td>
+              <td class="p-3 {% if o.discount_amount %}text-red-400{% else %}text-neutral-600{% endif %}">
+                {% if o.discount_amount %}− RM{{ "%.2f"|format(o.discount_amount) }}{% else %}—{% endif %}
+              </td>
+              <td class="p-3 text-accent font-medium">RM{{ "%.2f"|format(o.total) }}</td>
+              <td class="p-3 text-neutral-500">{{ o.created_at.strftime('%d %b %H:%M') }}</td>
+              <td class="p-3">
+                <a href="/bill/{{ o.id }}" target="_blank" class="text-accent text-xs hover:underline">View</a>
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not completed_invoices %}
+            <tr><td colspan="11" class="p-8 text-center text-neutral-600">No paid invoices yet</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- GRAB / FOODPANDA -->
+    <section id="tab-platforms" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+        <h1 class="font-forum text-3xl text-white uppercase">Platform Orders</h1>
+        <div class="flex gap-2">
+          <button onclick="openPlatformModal('grab')" class="text-xs px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition">+ GrabFood Order</button>
+          <button onclick="openPlatformModal('foodpanda')" class="text-xs px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition">+ FoodPanda Order</button>
+        </div>
+      </div>
+      <p class="text-neutral-500 text-sm mb-4">Manually enter orders received from Grab / FoodPanda so they appear in kitchen display and get proper invoices.</p>
+      <div class="bg-[#111] border border-white/5 rounded-xl overflow-x-auto">
+        <div class="overflow-x-auto"><table class="w-full text-sm">
+          <thead class="bg-white/5 text-neutral-400 text-xs uppercase">
+            <tr><th class="text-left p-3">Order</th><th class="text-left p-3">Platform</th><th class="text-left p-3">Ref ID</th><th class="text-left p-3">Customer</th><th class="text-left p-3">Items</th><th class="text-left p-3">Total</th><th class="text-left p-3">Status</th><th class="p-3"></th></tr>
+          </thead>
+          <tbody>
+            {% for o in platform_orders %}
+            <tr class="border-t border-white/5">
+              <td class="p-3 text-white">{{ o.order_no }}</td>
+              <td class="p-3">
+                <span class="text-xs px-2 py-1 rounded-full {% if o.source=='grab' %}bg-green-500/10 text-green-400{% else %}bg-red-500/10 text-red-400{% endif %}">
+                  {% if o.source=='grab' %}🟢 GrabFood{% else %}🔴 FoodPanda{% endif %}
+                </span>
+              </td>
+              <td class="p-3 text-neutral-400 text-xs">{{ o.platform_order_id or '—' }}</td>
+              <td class="p-3 text-neutral-400">{{ o.customer_name or '—' }}</td>
+              <td class="p-3 text-neutral-400 text-xs">{{ o.items|map(attribute='name')|list|join(', ')|truncate(40) }}</td>
+              <td class="p-3 text-accent font-medium">RM{{ "%.2f"|format(o.total) }}</td>
+              <td class="p-3"><span class="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-400">{{ o.status }}</span></td>
+              <td class="p-3"><a href="/bill/{{ o.id }}" target="_blank" class="text-accent text-xs">Invoice</a></td>
+            </tr>
+            {% endfor %}
+            {% if not platform_orders %}
+            <tr><td colspan="8" class="p-8 text-center text-neutral-600">No Grab/FoodPanda orders yet. Click the buttons above to enter them.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- WAITERS -->
+    <section id="tab-waiters" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Waiters</h1>
+        <button onclick="openWaiterModal()" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition text-white text-xs px-4 py-2.5 rounded-lg">+ Add Waiter</button>
+      </div>
+      <p class="text-neutral-500 text-sm mb-4">Waiters appear in the POS dropdown. Add/remove as your staff changes.</p>
+      <div class="grid sm:grid-cols-3 gap-4">
+        {% for w in waiters %}
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5 flex items-center justify-between">
+          <div>
+            <div class="text-white font-medium">{{ w.name }}</div>
+            <div class="text-xs mt-1 {{ 'text-green-400' if w.active else 'text-red-400' }}">{{ 'Active' if w.active else 'Inactive' }}</div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick='openWaiterModal({{ {"id":w.id,"name":w.name,"pin":w.pin,"active":w.active}|tojson }})' class="text-accent text-xs">Edit</button>
+            <button onclick="deleteWaiter({{ w.id }})" class="text-red-400 text-xs">Del</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+
+    <!-- CUSTOMERS -->
+    <section id="tab-customers" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Customers</h1>
+        <div class="flex gap-3">
+          <input id="cust-search" placeholder="Search by name or email..." oninput="loadCustomers()" class="bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none w-64 focus:border-accent">
+        </div>
+      </div>
+      <div id="customers-list" class="space-y-2"></div>
+    </section>
+
+    <!-- MARKETING -->
+    <section id="tab-marketing" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Marketing</h1>
+      </div>
+
+      <!-- Promo Popup Settings -->
+      <div class="bg-[#111] border border-white/5 rounded-2xl p-6 mb-6">
+        <h3 class="text-white font-medium mb-4">🎁 Promo Popup (shown to customers on login)</h3>
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Popup Title</label>
+            <input id="popup-title" value="{{ settings.popup_title }}" placeholder="Welcome! Special Offer" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-accent outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Popup Badge</label>
+            <input id="popup-badge" value="{{ settings.popup_badge }}" placeholder="LIMITED OFFER" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-accent outline-none">
+          </div>
+          <div class="col-span-2">
+            <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Popup Message</label>
+            <textarea id="popup-message" rows="2" placeholder="Get 10% off your first order! Use code: WELCOME10" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-accent outline-none resize-none">{{ settings.popup_message }}</textarea>
+          </div>
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Promo Code</label>
+            <input id="popup-code" value="{{ settings.popup_code }}" placeholder="WELCOME10" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-accent outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Popup Active</label>
+            <select id="popup-active" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-accent outline-none">
+              <option value="true" {% if settings.popup_active == 'true' %}selected{% endif %}>Active</option>
+              <option value="false" {% if settings.popup_active != 'true' %}selected{% endif %}>Inactive</option>
+            </select>
+          </div>
+        </div>
+        <button onclick="savePopupSettings()" class="mt-4 bg-accent text-white px-6 py-2.5 rounded-xl text-sm font-medium">Save Popup Settings</button>
+      </div>
+
+      <!-- Bulk Email -->
+      <div class="bg-[#111] border border-white/5 rounded-2xl p-6">
+        <h3 class="text-white font-medium mb-2">📧 Bulk Email to Customers</h3>
+        <p class="text-neutral-500 text-xs mb-4">Send email to all registered customers</p>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Subject</label>
+            <input id="email-subject" placeholder="New Item Available — Chicken Special!" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-accent outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-neutral-500 uppercase tracking-wide block mb-2">Message</label>
+            <textarea id="email-body" rows="5" placeholder="Dear Customer,&#10;&#10;We have exciting news! Check out our latest offers..." class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:border-accent outline-none resize-none"></textarea>
+          </div>
+          <div class="flex items-center justify-between">
+            <div id="email-status" class="text-sm text-neutral-500"></div>
+            <button onclick="sendBulkEmail()" class="bg-accent text-white px-6 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2">
+              <iconify-icon icon="solar:letter-linear"></iconify-icon> Send to All Customers
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESERVATIONS -->
+    <section id="tab-reservations" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Reservations</h1>
+        <div class="flex gap-3 items-center">
+          <input type="date" id="res-date-filter" onchange="loadReservations()" class="bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+          <button onclick="loadReservations()" class="bg-accent text-white text-xs px-4 py-2.5 rounded-lg">Refresh</button>
+        </div>
+      </div>
+      <div id="reservations-list" class="space-y-3"><p class="text-neutral-600 text-sm">Loading...</p></div>
+    </section>
+
+    <!-- SECURITY -->
+    <section id="tab-security" class="admin-tab hidden">
+      <h1 class="font-forum text-3xl text-white uppercase mb-6">Security</h1>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <!-- Staff Accounts -->
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+            <h3 class="text-white text-sm uppercase tracking-wide">Staff Accounts</h3>
+            <button onclick="openStaffModal()" class="bg-accent text-white text-xs px-3 py-1.5 rounded-lg">+ Add</button>
+          </div>
+          <div id="staff-list" class="space-y-2 text-sm text-neutral-400">Loading…</div>
+        </div>
+
+        <!-- Master PIN -->
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <h3 class="text-white text-sm uppercase tracking-wide mb-2">Master PIN</h3>
+          <p class="text-xs text-neutral-600 mb-3">Supervisor PIN staff enter in POS to void items or edit a bill. Changing it here takes effect immediately — no server access needed.</p>
+          <div class="space-y-2">
+            <input id="pin-current" type="password" inputmode="numeric" placeholder="Current PIN (or your password)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none">
+            <input id="pin-new" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN (4-8 digits)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none">
+            <button onclick="changeMasterPin()" class="w-full bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition text-white py-2 rounded-lg text-sm font-medium">Change PIN</button>
+            <p id="pin-msg" class="text-xs hidden"></p>
+          </div>
+        </div>
+
+        <!-- IP Whitelist -->
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+            <h3 class="text-white text-sm uppercase tracking-wide">IP Whitelist</h3>
+            <button onclick="addMyIP()" class="bg-green-500/10 border border-green-500/30 text-green-400 text-xs px-3 py-1.5 rounded-lg">+ Add My IP</button>
+          </div>
+          <p class="text-xs text-neutral-600 mb-3">If empty → everyone can access. Add IPs to restrict staff panels to specific locations (office, home, restaurant).</p>
+          <div id="ip-list" class="space-y-2 text-sm text-neutral-400">Loading…</div>
+          <div class="flex gap-2 mt-3">
+            <input id="ip-input" placeholder="e.g. 123.45.67.89" class="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-accent outline-none">
+            <input id="ip-label" placeholder="Label (e.g. Restaurant)" class="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-accent outline-none">
+            <button onclick="addIP()" class="bg-accent text-white text-xs px-3 rounded-lg">Add</button>
+          </div>
+          <p id="your-ip" class="text-[10px] text-neutral-600 mt-2"></p>
+        </div>
+      </div>
+
+      <!-- Login Logs -->
+      <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h3 class="text-white text-sm uppercase tracking-wide">Login Audit Log</h3>
+          <button onclick="loadSecurityTab()" class="text-xs text-accent hover:underline">Refresh</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-white/5 text-neutral-400 uppercase">
+              <tr><th class="text-left p-2">Time</th><th class="text-left p-2">Username</th><th class="text-left p-2">IP</th><th class="text-left p-2">Page</th><th class="text-left p-2">Result</th></tr>
+            </thead>
+            <tbody id="login-log-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section id="tab-reports" class="admin-tab hidden">
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+        <h1 class="font-forum text-3xl text-white uppercase">Reports & Export</h1>
+      </div>
+      <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <!-- Daily Summary -->
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <h3 class="text-white text-sm uppercase tracking-wide mb-3">Daily Summary</h3>
+          <div class="flex gap-2 mb-4">
+            <input type="date" id="rpt-date" class="flex-1 bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none">
+            <button onclick="loadDailySummary()" class="bg-accent text-white px-4 rounded-lg text-sm font-medium">Load</button>
+          </div>
+          <div id="rpt-summary" class="text-neutral-500 text-sm">Select a date to load summary.</div>
+        </div>
+        <!-- CSV Export -->
+        <div class="bg-[#111] border border-white/5 rounded-xl p-5">
+          <h3 class="text-white text-sm uppercase tracking-wide mb-3">Export Orders (CSV)</h3>
+          <div class="space-y-2 mb-4">
+            <div class="grid grid-cols-2 gap-2">
+              <div><label class="text-xs text-neutral-500">From</label><input type="date" id="exp-from" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none mt-1"></div>
+              <div><label class="text-xs text-neutral-500">To</label><input type="date" id="exp-to" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none mt-1"></div>
+            </div>
+            <select id="exp-source" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-accent outline-none">
+              <option value="all">All Sources</option>
+              <option value="pos">POS Only</option>
+              <option value="qr">QR Only</option>
+              <option value="online">Online Only</option>
+              <option value="grab">GrabFood Only</option>
+              <option value="foodpanda">FoodPanda Only</option>
+            </select>
+          </div>
+          <a id="exp-link" href="#" onclick="exportCSV(event)" class="block text-center bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition rounded-xl py-3 text-sm font-medium">
+            ⬇ Download CSV
+          </a>
+        </div>
+      </div>
+      <!-- Table status management -->
+      <h3 class="text-white text-sm uppercase tracking-wide mb-3">Table Status Management</h3>
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        {% for t in tables %}
+        <div class="bg-[#111] border rounded-xl p-3 text-center {{ 'border-accent/50' if t.status=='occupied' else 'border-white/5' }}">
+          <div class="text-white text-sm">{{ t.label }}</div>
+          <div class="text-xs mt-1 {{ 'text-accent' if t.status=='occupied' else 'text-green-400' }}">{{ t.status }}</div>
+          {% if t.status == 'occupied' %}
+          <button onclick="resetTable({{ t.id }})" class="mt-2 text-[10px] text-red-400 hover:underline">Reset to Free</button>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Staff Modal -->
+<div id="staff-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+    <h3 class="font-forum text-xl text-white mb-4">Staff Account</h3>
+    <input type="hidden" id="sf-id">
+    <input id="sf-username" placeholder="Username (lowercase)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <input id="sf-password" type="password" placeholder="Password (leave blank to keep)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <select id="sf-role" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+      <option value="staff">Staff (POS + Kitchen)</option>
+      <option value="manager">Manager (POS + Kitchen + Admin view)</option>
+      <option value="admin">Admin (Full access)</option>
+    </select>
+    <label class="flex items-center gap-2 text-sm text-neutral-400 mb-4"><input type="checkbox" id="sf-active" checked> Active</label>
+    <div class="flex gap-2">
+      <button onclick="closeStaffModal()" class="flex-1 bg-white/5 text-neutral-300 rounded-lg py-2 text-sm">Cancel</button>
+      <button onclick="saveStaff()" class="flex-1 bg-accent text-white rounded-lg py-2 text-sm">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Table Modal -->
+<div id="table-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+    <h3 class="font-forum text-xl text-white mb-4">Add New Table</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs text-neutral-500 uppercase tracking-wide">Table Number</label>
+        <input id="new-table-num" type="number" min="1" placeholder="e.g. 13" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1 text-white">
+      </div>
+      <div>
+        <label class="text-xs text-neutral-500 uppercase tracking-wide">Label</label>
+        <input id="new-table-label" placeholder="e.g. Table 13" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mt-1 text-white">
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="document.getElementById('table-modal').classList.add('hidden')" class="flex-1 bg-white/5 text-neutral-300 rounded-lg py-2 text-sm">Cancel</button>
+      <button onclick="saveNewTable()" class="flex-1 bg-accent text-white rounded-lg py-2 text-sm font-medium">Add Table</button>
+    </div>
+  </div>
+</div>
+
+<!-- Waiter Modal -->
+<div id="waiter-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+    <h3 class="font-forum text-xl text-white mb-4">Waiter</h3>
+    <input type="hidden" id="w-id">
+    <input id="w-name" placeholder="Waiter name" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <input id="w-pin" type="password" maxlength="4" placeholder="PIN (optional)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <label class="flex items-center gap-2 text-sm text-neutral-400 mb-4"><input type="checkbox" id="w-active" checked> Active</label>
+    <div class="flex gap-2">
+      <button onclick="closeWaiterModal()" class="flex-1 bg-white/5 text-neutral-300 rounded-lg py-2 text-sm">Cancel</button>
+      <button onclick="saveWaiter()" class="flex-1 bg-accent text-white rounded-lg py-2 text-sm">Save</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="platform-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <h3 class="font-forum text-xl text-white mb-1">New <span id="pm-platform-label">Platform</span> Order</h3>
+    <p class="text-xs text-neutral-500 mb-4">Enter the order details from the platform app</p>
+    <input type="hidden" id="pm-source">
+    <input id="pm-ref" placeholder="Platform order reference / ID" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <input id="pm-cust" placeholder="Customer name" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <input id="pm-phone" placeholder="Customer phone" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-3">
+    <div id="pm-items-list" class="space-y-2 mb-3">
+      <div class="text-xs text-neutral-500 uppercase tracking-wide mb-1">Items</div>
+      <div id="pm-item-rows"></div>
+      <button onclick="addPlatformItemRow()" class="text-xs text-accent hover:underline">+ Add Item</button>
+    </div>
+    <textarea id="pm-notes" placeholder="Special instructions / notes" rows="2" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-4"></textarea>
+    <div class="flex gap-2">
+      <button onclick="closePlatformModal()" class="flex-1 bg-white/5 text-neutral-300 rounded-lg py-2 text-sm">Cancel</button>
+      <button onclick="savePlatformOrder()" class="flex-1 bg-accent text-white rounded-lg py-2 text-sm">Save to Kitchen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Menu Item Modal -->
+<div id="item-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <h3 class="font-forum text-xl text-white mb-4">Menu Item</h3>
+    <input type="hidden" id="m-id">
+    <input id="m-name" placeholder="Name" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <select id="m-category" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+      {% for c in categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select>
+    <textarea id="m-description" placeholder="Description (shown on product page)" rows="2" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2"></textarea>
+    <div class="grid grid-cols-3 gap-2 mb-2">
+      <input id="m-price-full" type="number" step="0.01" placeholder="Full price" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm">
+      <input id="m-price-half" type="number" step="0.01" placeholder="Half price" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm">
+      <input id="m-rating" type="number" step="0.1" min="0" max="5" placeholder="Rating" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm">
+    </div>
+
+    <label class="text-xs text-neutral-500 uppercase tracking-wide">Photos</label>
+    <div id="m-images-preview" class="flex flex-wrap gap-2 mt-2 mb-2"></div>
+    <input type="file" id="m-image-upload" accept="image/*" multiple onchange="uploadMenuImages(this)" class="text-xs text-neutral-400 mb-3">
+
+    <label class="flex items-center gap-2 text-sm text-neutral-400 mb-4"><input type="checkbox" id="m-available" checked> Available</label>
+    <div class="flex gap-2">
+      <button onclick="closeItemModal()" class="flex-1 bg-white/5 text-neutral-300 rounded-lg py-2 text-sm">Cancel</button>
+      <button onclick="saveItem()" class="flex-1 bg-accent text-white rounded-lg py-2 text-sm">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Modal -->
+<div id="category-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+    <h3 class="font-forum text-xl text-white mb-4">Category</h3>
+    <input type="hidden" id="cat-id">
+    <input id="cat-name" placeholder="Category name" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <div class="flex items-center gap-3 mb-3">
+      <img id="cat-img-preview" src="" class="w-14 h-14 rounded-lg object-cover border border-white/10 hidden">
+      <input type="file" accept="image/*" onchange="uploadAndSet(this, 'cat-image-url', 'cat-img-preview')" class="text-xs text-neutral-400">
+    </div>
+    <input type="hidden" id="cat-image-url">
+    <input id="cat-sort" type="number" placeholder="Sort order (lower = first)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-4">
+    <div class="flex gap-2">
+      <button onclick="closeCategoryModal()" class="flex-1 bg-white/5 text-neutral-300 rounded-lg py-2 text-sm">Cancel</button>
+      <button onclick="saveCategory()" class="flex-1 bg-accent text-white rounded-lg py-2 text-sm">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Addon Modal -->
+<div id="addon-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-[#111] border border-white/10 rounded-2xl p-6 w-full max-w-sm">
+    <h3 class="font-forum text-xl text-white mb-4">Add-on</h3>
+    <input type="hidden" id="a-id">
+    <input id="a-name" placeholder="Name (e.g. Extra Cheese)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <input id="a-price" type="number" step="0.01" placeholder="Price (0 for free)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2 text-sm mb-2">
+    <div class="mb-3">
+      <label class="text-xs text-neutral-500 uppercase tracking-wide">Image (optional)</label>
+      <div class="flex items-center gap-3 mt-2">
+        <img id="a-img-preview" src="" class="w-14 h-14 rounded-lg object-cover border border-white/10 hidden">
+        <input type="file" accept="image/*" onchange="uploadAndSet(this,'a-image-url','a-img-preview')" class="text-xs text-neutral-400">
+      </div>
+      <input type="hidden" id="a-image-url">
+    </div>
+    <label class="flex items-center gap-2 text-sm text-neutral-400 mb-4"><input type="checkbox" id="a-available" checked> Active</label>
+    <div class="flex gap-2">
+      <button onclick="closeAddonModal()" class="flex-1 bg-white/5 text-neutral-300 rounded-lg py-2 text-sm">Cancel</button>
+      <button onclick="saveAddon()" class="flex-1 bg-accent text-white rounded-lg py-2 text-sm">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ---- Tabs ----
+
+
+// ---- Orders tab ----
+async function loadOrdersTab(){
+  const status = document.getElementById('orders-filter').value;
+  const res = await fetch('/api/pos/orders' + (status ? '?status=' + status : ''));
+  const orders = await res.json();
+  document.getElementById('orders-tab-body').innerHTML = orders.map(o => `
+    <tr class="border-t border-white/5">
+      <td class="p-3 text-white whitespace-nowrap">${o.order_no}</td>
+      <td class="p-3 text-neutral-400 text-xs">${o.items.map(i=>`${i.qty}x ${i.name}`).join(', ')}</td>
+      <td class="p-3 text-neutral-400 whitespace-nowrap">${o.table_number ? 'Table '+o.table_number : o.order_type}</td>
+      <td class="p-3 text-accent">${o.status}</td>
+      <td class="p-3"><span class="text-xs px-2 py-1 rounded-full ${o.payment_status==='paid' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}">${o.payment_status}</span></td>
+      <td class="p-3 text-neutral-300">RM${o.total.toFixed(2)}</td>
+      <td class="p-3 text-neutral-500">${o.created_at}</td>
+      <td class="p-3"><a href="/bill/${o.id}" target="_blank" class="text-accent text-xs">Bill</a></td>
+    </tr>`).join('') || '<tr><td colspan="8" class="p-6 text-center text-neutral-600">No orders found</td></tr>';
+}
+
+// ---- Generic image upload helper (single image -> hidden input + preview) ----
+async function uploadAndSet(fileInput, hiddenInputId, previewImgId){
+  const file = fileInput.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/admin/upload', {method:'POST', body: fd});
+  const data = await res.json();
+  if (data.error) { alert(data.error); return; }
+  document.getElementById(hiddenInputId).value = data.url;
+  const preview = document.getElementById(previewImgId);
+  preview.src = data.url;
+  preview.classList.remove('hidden');
+}
+
+// ---- Menu item modal ----
+let mImages = [];
+function openItemModal(data){
+  document.getElementById('item-modal').classList.remove('hidden');
+  document.getElementById('m-id').value = data ? data.id : '';
+  document.getElementById('m-name').value = data ? data.name : '';
+  document.getElementById('m-category').value = data ? data.category : 'Chicken';
+  document.getElementById('m-description').value = data ? (data.description || '') : '';
+  document.getElementById('m-price-full').value = data ? data.price_full : '';
+  document.getElementById('m-price-half').value = data ? data.price_half : '';
+  document.getElementById('m-rating').value = data ? (data.rating || 4.5) : 4.5;
+  document.getElementById('m-available').checked = data ? data.available : true;
+  mImages = data && data.images ? [...data.images] : (data && data.image_url ? [data.image_url] : []);
+  renderMImages();
+}
+function renderMImages(){
+  document.getElementById('m-images-preview').innerHTML = mImages.map((url, i) => `
+    <div class="relative">
+      <img src="${url}" class="w-16 h-16 rounded-lg object-cover border border-white/10">
+      <button onclick="mImages.splice(${i},1); renderMImages();" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 text-xs">×</button>
+    </div>`).join('');
+}
+async function uploadMenuImages(input){
+  for (const file of input.files){
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/admin/upload', {method:'POST', body: fd});
+    const data = await res.json();
+    if (data.url) mImages.push(data.url);
+  }
+  renderMImages();
+  input.value = '';
+}
+function closeItemModal(){ document.getElementById('item-modal').classList.add('hidden'); }
+async function saveItem(){
+  const payload = {
+    id: document.getElementById('m-id').value || null,
+    name: document.getElementById('m-name').value,
+    category: document.getElementById('m-category').value,
+    description: document.getElementById('m-description').value,
+    price_full: document.getElementById('m-price-full').value,
+    price_half: document.getElementById('m-price-half').value,
+    rating: document.getElementById('m-rating').value,
+    images: mImages,
+    available: document.getElementById('m-available').checked,
+  };
+  await fetch('/api/admin/menu-item', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  location.reload();
+}
+async function deleteItem(id){
+  if (!confirm('Delete this item?')) return;
+  await fetch('/api/admin/menu-item/'+id+'/delete', {method:'POST'});
+  location.reload();
+}
+
+// ---- Category modal ----
+function openCategoryModal(data){
+  document.getElementById('category-modal').classList.remove('hidden');
+  document.getElementById('cat-id').value = data ? data.id : '';
+  document.getElementById('cat-name').value = data ? data.name : '';
+  document.getElementById('cat-image-url').value = data ? (data.image_url || '') : '';
+  document.getElementById('cat-sort').value = data ? data.sort_order : 0;
+  const preview = document.getElementById('cat-img-preview');
+  if (data && data.image_url) { preview.src = data.image_url; preview.classList.remove('hidden'); }
+  else { preview.classList.add('hidden'); }
+}
+function closeCategoryModal(){ document.getElementById('category-modal').classList.add('hidden'); }
+async function saveCategory(){
+  const payload = {
+    id: document.getElementById('cat-id').value || null,
+    name: document.getElementById('cat-name').value,
+    image_url: document.getElementById('cat-image-url').value,
+    sort_order: document.getElementById('cat-sort').value,
+  };
+  if (!payload.name) { toast('Category name is required','warning'); return; }
+  await fetch('/api/admin/category', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  location.reload();
+}
+async function deleteCategory(id){
+  if (!confirm('Delete this category?')) return;
+  const res = await fetch('/api/admin/category/'+id+'/delete', {method:'POST'});
+  const data = await res.json();
+  if (data.error) { alert(data.error); return; }
+  location.reload();
+}
+
+// ---- CSV Export ----
+
+// ---- Site settings ----
+async function saveSettings(){
+  const payload = {
+      display_bg_url: document.getElementById('s-display-bg-url')?.value||'',
+      display_idle_text: document.getElementById('s-display-idle-text')?.value||'',
+    footer_text: document.getElementById('s-footer-text').value,
+    hero_image_url: document.getElementById('s-hero-url').value,
+    about_image_url: document.getElementById('s-about-img-url').value,
+    about_text: document.getElementById('s-about-text').value,
+    site_name: document.getElementById('s-site-name').value,
+    site_tagline: document.getElementById('s-site-tagline').value,
+    site_address: document.getElementById('s-site-address').value,
+    site_phone: document.getElementById('s-site-phone').value,
+    site_description: document.getElementById('s-site-description').value,
+    color_primary: document.getElementById('s-color-primary-hex').value,
+    color_button: document.getElementById('s-color-button-hex').value,
+    color_bg_dark: document.getElementById('s-color-bg-dark-hex').value,
+    color_bg_light: document.getElementById('s-color-bg-light-hex').value,
+    theme_default: document.getElementById('s-theme-default').value,
+    logo_dark_mode_url: document.getElementById('s-logo-dark-url').value,
+    logo_light_mode_url: document.getElementById('s-logo-light-url').value,
+    logo_url: document.getElementById('s-logo-dark-url').value, // legacy field, kept in sync
+    favicon_url: document.getElementById('s-favicon-url').value,
+    smtp_host: document.getElementById('s-smtp-host')?.value||'',
+    smtp_port: document.getElementById('s-smtp-port')?.value||'',
+    smtp_user: document.getElementById('s-smtp-user')?.value||'',
+    smtp_pass: document.getElementById('s-smtp-pass')?.value||'',
+  };
+  await fetch('/api/admin/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  const msg = document.getElementById('settings-saved-msg');
+  msg.classList.remove('hidden');
+  setTimeout(() => msg.classList.add('hidden'), 2000);
+}
+
+// ---- Platform (Grab / FoodPanda) order modal ----
+const menuItems = {{ items|map(attribute='name')|list|tojson }};
+const menuIds   = {{ items|map(attribute='id')|list|tojson }};
+let pmItemCount = 0;
+
+function openPlatformModal(src){
+  document.getElementById('pm-source').value = src;
+  document.getElementById('pm-platform-label').textContent = src==='grab' ? 'GrabFood' : 'FoodPanda';
+  document.getElementById('pm-ref').value = '';
+  document.getElementById('pm-cust').value = '';
+  document.getElementById('pm-phone').value = '';
+  document.getElementById('pm-notes').value = '';
+  document.getElementById('pm-item-rows').innerHTML = '';
+  pmItemCount = 0;
+  addPlatformItemRow();
+  document.getElementById('platform-modal').classList.remove('hidden');
+}
+function closePlatformModal(){ document.getElementById('platform-modal').classList.add('hidden'); }
+function addPlatformItemRow(){
+  const idx = pmItemCount++;
+  const row = document.createElement('div');
+  row.id = 'pm-row-'+idx;
+  row.className = 'grid grid-cols-4 gap-1.5 items-center';
+  row.innerHTML = `
+    <select id="pm-item-id-${idx}" class="col-span-2 bg-[#0a0a0a] border border-white/10 rounded-lg px-2 py-2 text-xs">
+      ${menuItems.map((n,i)=>`<option value="${menuIds[i]}">${n}</option>`).join('')}
+    </select>
+    <input id="pm-item-qty-${idx}" type="number" min="1" value="1" placeholder="Qty" class="bg-[#0a0a0a] border border-white/10 rounded-lg px-2 py-2 text-xs text-center">
+    <button onclick="document.getElementById('pm-row-${idx}').remove()" class="text-red-400 text-xs font-bold">✕</button>`;
+  document.getElementById('pm-item-rows').appendChild(row);
+}
+async function savePlatformOrder(){
+  const src = document.getElementById('pm-source').value;
+  const items = [];
+  document.querySelectorAll('[id^="pm-item-id-"]').forEach(sel=>{
+    const idx = sel.id.split('-').pop();
+    const qty = parseInt(document.getElementById('pm-item-qty-'+idx).value)||1;
+    items.push({ id: parseInt(sel.value), qty, size:'full' });
+  });
+  if(!items.length){ toast('Add at least one item','warning'); return; }
+  const payload = {
+    source: src,
+    platform_order_id: document.getElementById('pm-ref').value,
+    customer_name: document.getElementById('pm-cust').value,
+    customer_phone: document.getElementById('pm-phone').value,
+    notes: document.getElementById('pm-notes').value,
+    items
+  };
+  const res = await fetch('/api/platform/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d = await res.json();
+  if(d.error){ alert(d.error); return; }
+  closePlatformModal();
+  location.reload();
+}
+
+async function saveTngSettings(){
+  const payload = {
+    tng_qr_url:  document.getElementById('s-tng-qr-url').value,
+    tng_phone:   document.getElementById('s-tng-phone').value,
+    tng_name:    document.getElementById('s-tng-name').value,
+  };
+  const res = await fetch('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(res.ok){ alert('TnG settings saved!'); }
+}
+async function saveHitPayConfig(){
+  const key     = document.getElementById('hp-key').value.trim();
+  const salt    = document.getElementById('hp-salt').value.trim();
+  const sandbox = document.getElementById('hp-sandbox').checked;
+  if(!key || !salt){ alert('Please enter both API Key and Salt'); return; }
+  const res = await fetch('/api/admin/hitpay/configure',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({hitpay_api_key:key, hitpay_salt:salt, hitpay_sandbox:sandbox})});
+  if(res.ok){
+    alert(sandbox ? 'HitPay Sandbox configured ✓ — test with RM 0.01. When ready, uncheck Sandbox and save again.' : 'HitPay LIVE configured ✓ — customers can now pay online!');
+    document.getElementById('hp-key').value='';
+    document.getElementById('hp-salt').value='';
+  }
+}
+
+// ---- Security tab ----
+async function changeMasterPin(){
+  const current = document.getElementById('pin-current').value;
+  const newPin  = document.getElementById('pin-new').value;
+  const msg = document.getElementById('pin-msg');
+  msg.classList.remove('hidden');
+  if(!/^\d{4,8}$/.test(newPin)){
+    msg.textContent = 'New PIN must be 4-8 digits.'; msg.className='text-xs text-red-400'; return;
+  }
+  const res = await fetch('/api/admin/change-pin', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({current_pin:current, new_pin:newPin})});
+  const data = await res.json();
+  if(data.error){ msg.textContent = data.error; msg.className='text-xs text-red-400'; return; }
+  msg.textContent = 'PIN changed successfully.'; msg.className='text-xs text-green-400';
+  document.getElementById('pin-current').value = '';
+  document.getElementById('pin-new').value = '';
+}
+
+async function loadSecurityTab(){
+  // Staff accounts
+  const sr = await fetch('/api/admin/staff');
+  const staff = await res_ok(sr);
+  if(staff) document.getElementById('staff-list').innerHTML = staff.map(u=>`
+    <div class="flex items-center justify-between bg-[#0a0a0a] rounded-lg px-3 py-2">
+      <div>
+        <span class="text-white">${u.username}</span>
+        <span class="text-[10px] ml-2 px-1.5 py-0.5 rounded ${u.role==='admin'?'bg-accent/20 text-accent':u.role==='manager'?'bg-blue-500/20 text-blue-400':'bg-white/5 text-neutral-400'}">${u.role}</span>
+        <span class="text-[10px] ml-1 ${u.active?'text-green-400':'text-red-400'}">${u.active?'active':'inactive'}</span>
+      </div>
+      <div class="flex gap-2">
+        <button onclick='openStaffModal(${JSON.stringify(u)})' class="text-accent text-xs">Edit</button>
+        <button onclick="deleteStaff(${u.id})" class="text-red-400 text-xs">Del</button>
+      </div>
+    </div>`).join('') || '<p class="text-neutral-600 text-xs">No staff accounts</p>';
+
+  // IP Whitelist
+  const ir = await fetch('/api/admin/ip-whitelist');
+  const ipdata = await res_ok(ir);
+  if(ipdata){
+    document.getElementById('your-ip').textContent = 'Your current IP: ' + ipdata.your_ip;
+    document.getElementById('ip-list').innerHTML = ipdata.ips.length
+      ? ipdata.ips.map(i=>`
+        <div class="flex items-center justify-between bg-[#0a0a0a] rounded-lg px-3 py-2">
+          <div><span class="text-white font-mono">${i.ip}</span> <span class="text-neutral-600 text-xs">${i.label}</span></div>
+          <button onclick="deleteIP(${i.id})" class="text-red-400 text-xs">Remove</button>
+        </div>`).join('')
+      : '<p class="text-neutral-600 text-xs">No IPs — all locations allowed</p>';
+  }
+
+  // Login logs
+  const lr = await fetch('/api/admin/login-logs');
+  const logs = await res_ok(lr);
+  if(logs) document.getElementById('login-log-body').innerHTML = logs.map(l=>`
+    <tr class="border-t border-white/5">
+      <td class="p-2 text-neutral-500">${l.at}</td>
+      <td class="p-2 text-white">${l.username||'—'}</td>
+      <td class="p-2 font-mono text-neutral-400">${l.ip}</td>
+      <td class="p-2 text-neutral-500">${l.path}</td>
+      <td class="p-2"><span class="${l.success?'text-green-400':'text-red-400'}">${l.success?'✓ OK':'✗ Fail'}</span></td>
+    </tr>`).join('') || '<tr><td colspan="5" class="p-4 text-center text-neutral-600">No logs yet</td></tr>';
+}
+
+async function res_ok(r){ try{ return await r.json(); } catch(e){ return null; } }
+
+// Staff CRUD
+function openStaffModal(data){
+  document.getElementById('staff-modal').classList.remove('hidden');
+  document.getElementById('sf-id').value    = data ? data.id : '';
+  document.getElementById('sf-username').value = data ? data.username : '';
+  document.getElementById('sf-password').value = '';
+  document.getElementById('sf-role').value  = data ? data.role : 'staff';
+  document.getElementById('sf-active').checked = data ? data.active : true;
+}
+function closeStaffModal(){ document.getElementById('staff-modal').classList.add('hidden'); }
+async function saveStaff(){
+  const payload = {
+    id: document.getElementById('sf-id').value || null,
+    username: document.getElementById('sf-username').value.trim().toLowerCase(),
+    password: document.getElementById('sf-password').value,
+    role: document.getElementById('sf-role').value,
+    active: document.getElementById('sf-active').checked,
+  };
+  const r = await fetch('/api/admin/staff', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  const d = await r.json();
+  if(d.error){ alert(d.error); return; }
+  closeStaffModal(); loadSecurityTab();
+}
+async function deleteStaff(id){
+  if(!confirm('Delete this staff account?')) return;
+  const r = await fetch('/api/admin/staff/'+id+'/delete',{method:'POST'});
+  const d = await r.json();
+  if(d.error){ alert(d.error); return; }
+  loadSecurityTab();
+}
+
+// IP Whitelist
+async function addMyIP(){
+  const r = await fetch('/api/admin/ip-whitelist');
+  const d = await r.json();
+  document.getElementById('ip-input').value = d.your_ip;
+  document.getElementById('ip-label').value = 'My IP';
+}
+async function addIP(){
+  const ip    = document.getElementById('ip-input').value.trim();
+  const label = document.getElementById('ip-label').value.trim();
+  if(!ip){ alert('Enter an IP address'); return; }
+  const r = await fetch('/api/admin/ip-whitelist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip,label})});
+  const d = await r.json();
+  if(d.error){ alert(d.error); return; }
+  document.getElementById('ip-input').value='';
+  document.getElementById('ip-label').value='';
+  loadSecurityTab();
+}
+async function deleteIP(id){
+  if(!confirm('Remove this IP from whitelist?')) return;
+  await fetch('/api/admin/ip-whitelist/'+id+'/delete',{method:'POST'});
+  loadSecurityTab();
+}
+
+// Override showTab to load security data
+const _origShowTab = showTab;
+function showTab(name){
+  document.querySelectorAll('.admin-tab').forEach(function(s){ s.classList.add('hidden'); });
+  var el = document.getElementById('tab-' + name);
+  if(el) el.classList.remove('hidden');
+  document.querySelectorAll('.admin-tab-btn').forEach(function(b){
+    b.classList.remove('text-white','bg-accent/10','border','border-accent/30');
+    b.classList.add('text-neutral-400');
+  });
+  document.querySelectorAll('.admin-tab-btn').forEach(function(b){
+    if(b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + name + "'") !== -1){
+      b.classList.remove('text-neutral-400');
+      b.classList.add('text-white','bg-accent/10','border','border-accent/30');
+    }
+  });
+  if(name === 'security' && typeof loadSecurityTab === 'function') loadSecurityTab();
+  if(name === 'orders' && typeof loadOrdersTab === 'function') loadOrdersTab();
+  if(name === 'promos' && typeof loadPromos === 'function') loadPromos();
+  if(name === 'customers') loadCustomers();
+  if(name === 'reservations') loadReservations();
+  // Close mobile sidebar
+  if(window.innerWidth < 768){
+    const sb=document.getElementById('admin-sidebar');
+    const ov=document.getElementById('mobile-sidebar-overlay');
+    if(sb){sb.classList.add('hidden');sb.classList.remove('flex');}
+    if(ov){ov.classList.add('hidden');}
+  }
+}
+
+
+// ---- Table management ----
+function addTableModal(){
+  document.getElementById('table-modal').classList.remove('hidden');
+  document.getElementById('new-table-num').value='';
+  document.getElementById('new-table-label').value='';
+}
+async function saveNewTable(){
+  const num = parseInt(document.getElementById('new-table-num').value)||0;
+  const label = document.getElementById('new-table-label').value||('Table '+num);
+  if(!num){ alert('Enter table number'); return; }
+  const r = await fetch('/api/admin/table',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({number:num,label})});
+  const d = await r.json();
+  if(d.error){ alert(d.error); return; }
+  document.getElementById('table-modal').classList.add('hidden');
+  location.reload();
+}
+async function deleteTable(id){
+  if(!confirm('Delete this table?')) return;
+  await fetch('/api/admin/table/'+id+'/delete',{method:'POST'});
+  location.reload();
+}
+
+// ---- Reservations ----
+async function loadReservations(){
+  const date = document.getElementById("res-date-filter")?.value||"";
+  const res = await fetch("/api/admin/reservations"+(date?"?date="+date:""));
+  const data = await res.json();
+  const wrap = document.getElementById("reservations-list");
+  if(!data.length){ wrap.innerHTML="<div class=\"bg-[#111] border border-white/5 rounded-xl p-8 text-center text-neutral-600\">No reservations found</div>"; return; }
+  wrap.innerHTML = data.map(r=>`<div class="bg-[#111] border border-white/5 rounded-xl p-5 flex items-center gap-4"><div class="w-12 h-12 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center font-forum text-accent text-lg flex-shrink-0">${r.guests}</div><div class="flex-1 min-w-0"><div class="flex items-center gap-3 mb-1"><span class="text-white font-semibold">${r.name}</span><span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${r.status==="confirmed"?"bg-green-500/10 text-green-400":r.status==="cancelled"?"bg-red-500/10 text-red-400":"bg-yellow-500/10 text-yellow-400"}">${r.status}</span></div><div class="text-sm text-neutral-400">${r.date} at ${r.time} · ${r.guests} guests · ${r.phone}</div>${r.notes?"<div class=\"text-xs text-neutral-600 mt-1 italic\">\""+r.notes+"\"</div>":""}</div><div class="flex gap-2 flex-shrink-0"><button onclick="updateResStatus(${r.id},'confirmed')" class="bg-green-500/10 text-green-400 border border-green-500/30 text-xs px-3 py-1.5 rounded-lg">✓ Confirm</button><button onclick="updateResStatus(${r.id},'cancelled')" class="bg-red-500/10 text-red-400 border border-red-500/30 text-xs px-3 py-1.5 rounded-lg">✕ Cancel</button></div></div>`).join("");
+}
+async function updateResStatus(id,status){
+  await fetch("/api/admin/reservation/"+id+"/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})});
+  loadReservations();
+}
+
+
+async function quickToggleItem(id, btn){
+  const r = await fetch('/api/admin/menu-item/'+id+'/toggle',{method:'POST'});
+  const d = await r.json();
+  if(d.ok){
+    if(d.available){
+      btn.textContent = '✓ Available';
+      btn.className = 'text-xs px-3 py-1.5 rounded-full font-medium transition bg-green-500/10 text-green-400';
+    } else {
+      btn.textContent = '✗ Hidden';
+      btn.className = 'text-xs px-3 py-1.5 rounded-full font-medium transition bg-red-500/10 text-red-400';
+    }
+  }
+}
+
+
+// ---- Customers ----
+async function loadCustomers(){
+  const q = document.getElementById('cust-search')?.value||'';
+  const res = await fetch('/api/admin/customers?q='+encodeURIComponent(q));
+  const data = await res.json();
+  const wrap = document.getElementById('customers-list');
+  if(!data.length){ wrap.innerHTML='<div class="bg-[#111] border border-white/5 rounded-xl p-8 text-center text-neutral-600">No customers found</div>'; return; }
+  wrap.innerHTML = data.map(c=>`
+    <div class="bg-[#111] border border-white/5 rounded-xl overflow-hidden">
+      <div class="p-4 flex items-center gap-4 cursor-pointer" onclick="toggleCustOrders(${c.id})">
+        <div class="w-10 h-10 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center font-forum text-accent">${c.name[0].toUpperCase()}</div>
+        <div class="flex-1">
+          <div class="text-white font-medium">${c.name}</div>
+          <div class="text-neutral-500 text-xs">${c.email} · ${c.phone||'No phone'}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-accent font-bold">RM ${c.total_spent.toFixed(2)}</div>
+          <div class="text-neutral-600 text-xs">${c.order_count} orders</div>
+        </div>
+        <div class="text-neutral-500 text-xs">${c.created_at}</div>
+      </div>
+      <div id="cust-orders-${c.id}" class="hidden border-t border-white/5 p-4">
+        <div class="text-xs text-neutral-500 mb-2">ORDER HISTORY</div>
+        ${c.orders.map(o=>`<div class="flex justify-between text-sm py-1.5 border-b border-white/5"><span class="text-neutral-400">${o.order_no}</span><span class="text-neutral-400">${o.created_at}</span><span class="text-accent font-medium">RM ${o.total.toFixed(2)}</span><span class="text-xs px-2 py-0.5 rounded-full ${o.status==='completed'?'bg-green-500/10 text-green-400':'bg-yellow-500/10 text-yellow-400'}">${o.status}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function toggleCustOrders(id){
+  const el = document.getElementById('cust-orders-'+id);
+  el.classList.toggle('hidden');
+}
+
+// ---- Popup Settings ----
+async function savePopupSettings(){
+  const data = {
+    popup_title: document.getElementById('popup-title').value,
+    popup_badge: document.getElementById('popup-badge').value,
+    popup_message: document.getElementById('popup-message').value,
+    popup_code: document.getElementById('popup-code').value,
+    popup_active: document.getElementById('popup-active').value,
+  };
+  const r = await fetch('/api/admin/settings', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+  if(r.ok) alert('Popup settings saved!');
+}
+
+// ---- Bulk Email ----
+async function sendBulkEmail(){
+  const subject = document.getElementById('email-subject').value.trim();
+  const body = document.getElementById('email-body').value.trim();
+  if(!subject||!body){ alert('Enter subject and message'); return; }
+  if(!confirm('Send email to ALL registered customers?')) return;
+  document.getElementById('email-status').textContent = 'Sending...';
+  const r = await fetch('/api/admin/bulk-email', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({subject, body})});
+  const d = await r.json();
+  document.getElementById('email-status').textContent = d.message || 'Done!';
+}
+
+
+
+
+function adminMenuSearch(){
+  const q = (document.getElementById('admin-menu-search')?.value||'').toLowerCase();
+  const cat = document.getElementById('admin-menu-cat')?.value||'';
+  document.querySelectorAll('#menu-table tbody tr').forEach(row=>{
+    const name = (row.dataset.name||'').toLowerCase();
+    const desc = (row.dataset.desc||'').toLowerCase();
+    const rowcat = (row.dataset.cat||'');
+    const nameOk = !q || name.includes(q) || desc.includes(q);
+    const catOk = !cat || rowcat === cat;
+    row.style.display = (nameOk && catOk) ? '' : 'none';
+  });
+}
+
+
+function toggleMobileSidebar(){
+  const sidebar = document.getElementById('admin-sidebar');
+  const overlay = document.getElementById('mobile-sidebar-overlay');
+  const isHidden = sidebar.classList.contains('hidden');
+  if(isHidden){
+    sidebar.classList.remove('hidden');
+    sidebar.classList.add('flex');
+    overlay.classList.remove('hidden');
+  } else {
+    sidebar.classList.add('hidden');
+    sidebar.classList.remove('flex');
+    overlay.classList.add('hidden');
+  }
+}
+
+// Close sidebar when tab selected on mobile
+const _origShowTabAdmin = showTab;
+
+
+// ---- Waiter modal ----
+function openWaiterModal(data){
+  document.getElementById('waiter-modal').classList.remove('hidden');
+  document.getElementById('w-id').value    = data ? data.id : '';
+  document.getElementById('w-name').value  = data ? data.name : '';
+  document.getElementById('w-pin').value   = data ? (data.pin||'') : '';
+  document.getElementById('w-active').checked = data ? data.active : true;
+}
+function closeWaiterModal(){ document.getElementById('waiter-modal').classList.add('hidden'); }
+async function saveWaiter(){
+  const payload={id:document.getElementById('w-id').value||null,
+    name:document.getElementById('w-name').value,
+    pin:document.getElementById('w-pin').value,
+    active:document.getElementById('w-active').checked};
+  await fetch('/api/admin/waiter',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  location.reload();
+}
+async function deleteWaiter(id){ if(!confirm('Remove?')) return; await fetch('/api/admin/waiter/'+id+'/delete',{method:'POST'}); location.reload(); }
+
+// ---- Reports / CSV / Table reset ----
+async function loadDailySummary(){
+  const d=document.getElementById('rpt-date').value||new Date().toISOString().slice(0,10);
+  const res=await fetch('/api/admin/daily-summary?date='+d);
+  const data=await res.json();
+  document.getElementById('rpt-summary').innerHTML=`
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between"><span class="text-neutral-500">Date</span><span class="text-white font-medium">${data.date}</span></div>
+      <div class="flex justify-between"><span class="text-neutral-500">Total Orders</span><span class="text-white">${data.total_orders}</span></div>
+      <div class="flex justify-between"><span class="text-neutral-500">Paid</span><span class="text-green-400">${data.paid_orders}</span></div>
+      <div class="flex justify-between"><span class="text-neutral-500">Sales</span><span class="text-accent font-bold">RM ${data.total_sales.toFixed(2)}</span></div>
+      <div class="flex justify-between"><span class="text-neutral-500">Discount</span><span class="text-red-400">- RM ${data.total_discount.toFixed(2)}</span></div>
+      ${Object.entries(data.by_method||{}).filter(([,v])=>v>0).map(([k,v])=>`<div class="flex justify-between text-xs"><span class="text-neutral-600">${k}</span><span>RM ${v.toFixed(2)}</span></div>`).join('')}
+    </div>`;
+}
+function exportCSV(e){
+  e.preventDefault();
+  const from=document.getElementById('exp-from').value,to=document.getElementById('exp-to').value,src=document.getElementById('exp-source').value;
+  let url='/api/admin/export/orders.csv?source='+src;
+  if(from) url+='&from='+from; if(to) url+='&to='+to;
+  window.location.href=url;
+}
+async function resetTable(tid){ if(!confirm('Reset to Free?')) return; await fetch('/api/admin/table/'+tid+'/reset',{method:'POST'}); location.reload(); }
+
+function openAddonModal(data){
+  document.getElementById('addon-modal').classList.remove('hidden');
+  document.getElementById('a-id').value = data ? data.id : '';
+  document.getElementById('a-name').value = data ? data.name : '';
+  document.getElementById('a-price').value = data ? data.price : '';
+  document.getElementById('a-image-url').value = data ? (data.image_url || '') : '';
+  document.getElementById('a-available').checked = data ? data.available : true;
+  const prev = document.getElementById('a-img-preview');
+  if (data && data.image_url) { prev.src = data.image_url; prev.classList.remove('hidden'); }
+  else { prev.src=''; prev.classList.add('hidden'); }
+}
+function closeAddonModal(){ document.getElementById('addon-modal').classList.add('hidden'); }
+async function saveAddon(){
+  const payload = {
+    id: document.getElementById('a-id').value || null,
+    name: document.getElementById('a-name').value,
+    price: document.getElementById('a-price').value,
+    image_url: document.getElementById('a-image-url').value,
+    available: document.getElementById('a-available').checked,
+  };
+  await fetch('/api/admin/addon', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  location.reload();
+}
+async function deleteAddon(id){
+  if (!confirm('Delete this add-on?')) return;
+  await fetch('/api/admin/addon/'+id+'/delete', {method:'POST'});
+  location.reload();
+}
+</script>
+{% endblock %}
