@@ -1106,7 +1106,7 @@ async function renderPanel(type){
               <button onclick="deleteOrder(${o.id})" class="ob ob-delete"><iconify-icon icon="solar:trash-bin-2-linear"></iconify-icon> Delete</button>
               <button onclick="copyOrder(${o.id})" class="ob ob-copy"><iconify-icon icon="solar:copy-linear"></iconify-icon> Copy</button>
               ${o.payment_status==='pending_verification'?`<button onclick="verifyTng(${o.id})" style="grid-column:span 2;background:#00b4d8;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:5px;"><iconify-icon icon='solar:wallet-check-linear'></iconify-icon> ✓ Verify TnG Payment</button>`:''}
-              <button onclick="window.open('/bill/'+o.id+'?format=a4','_blank')" class="ob ob-invoice" style="justify-content:center;"><iconify-icon icon="solar:bill-list-linear"></iconify-icon> Invoice</button>
+              <button onclick="showBillOverlay('/bill/${o.id}?format=a4')" class="ob ob-invoice" style="justify-content:center;"><iconify-icon icon="solar:bill-list-linear"></iconify-icon> Invoice</button>
               <a href="/token/${o.id}" target="_blank" class="ob" style="background:#059669;color:#fff;text-decoration:none;justify-content:center;display:flex;align-items:center;gap:5px;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;"><iconify-icon icon="solar:ticket-linear"></iconify-icon> Token Slip</a>
             </div>
           </div>`).join('')}
@@ -1325,8 +1325,9 @@ async function submitMasterKey(){
   const res = await fetch('/api/pos/verify-master-key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
   const d   = await res.json();
   if(d.ok){
+    const cb = _masterKeyCallback;
     closeMasterKey();
-    if(_masterKeyCallback) _masterKeyCallback();
+    if(cb) cb();
   } else {
     document.getElementById('mk-error').style.display='block';
     document.getElementById('mk-pin').value='';
