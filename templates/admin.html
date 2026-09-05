@@ -66,6 +66,7 @@
       <a href="/admin/logout" class="block px-3 py-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/5">Logout</a>
       <a href="/" class="block px-3 py-2.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">Site</a>
       <a href="/pos" class="block px-3 py-2.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">POS</a>
+      <a href="/tablet" class="block px-3 py-2.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 flex items-center gap-1.5"><iconify-icon icon="solar:tablet-bold" class="text-accent"></iconify-icon> Staff Tablet</a>
       <a href="/kitchen" class="block px-3 py-2.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5">Kitchen</a>
     </div>
   </aside>
@@ -271,20 +272,133 @@
     <!-- TABLES / QR -->
     <section id="tab-tables" class="admin-tab hidden">
       <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
-        <h1 class="font-forum text-3xl text-white uppercase">Tables &amp; QR Codes</h1>
-        <button onclick="addTableModal()" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition text-white text-xs px-4 py-2.5 rounded-lg">+ Add Table</button>
+        <div>
+          <h1 class="font-forum text-3xl text-white uppercase">Tables &amp; QR Codes</h1>
+          <p class="text-neutral-500 text-xs mt-1">Manage physical tables, download QR codes, print table stand cards, and configure customer self-ordering.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="window.open('/admin/tables/print-all','_blank')" class="bg-white/10 hover:bg-white/20 text-white text-xs px-3.5 py-2.5 rounded-lg border border-white/15 flex items-center gap-1.5 transition">
+            <iconify-icon icon="solar:printer-2-linear"></iconify-icon> Print All Stand Cards
+          </button>
+          <button onclick="addTableModal()" class="bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition text-white text-xs px-4 py-2.5 rounded-lg">+ Add Table</button>
+        </div>
       </div>
-      <div class="grid grid-cols-3 sm:grid-cols-6 gap-3" id="tables-grid">
+
+      <!-- TABLE RANGE WAITER ASSIGNMENT PANEL -->
+      <div class="bg-[#111] border border-white/10 rounded-xl p-4 sm:p-5 mb-6">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+          <div>
+            <h2 class="font-forum text-lg text-white uppercase flex items-center gap-2">
+              <iconify-icon icon="solar:users-group-rounded-bold" class="text-accent"></iconify-icon>
+              Table Range Waiter Assignment
+            </h2>
+            <p class="text-neutral-400 text-xs mt-0.5">Assign blocks of tables to staff (e.g. Ahmed → Tables 01 to 05, Bilal → Tables 06 to 10).</p>
+          </div>
+          <div class="text-[11px] text-neutral-500">QR orders &amp; call bells from assigned tables route to the assigned waiter automatically.</div>
+        </div>
+
+        <form id="form-assign-range" onsubmit="submitAssignRange(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">Select Waiter / Staff</label>
+            <select id="range-waiter" required class="w-full bg-[#1A1A1A] border border-white/15 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-accent">
+              <option value="">-- Choose Waiter --</option>
+              {% for w in waiters %}
+              <option value="{{ w.name }}">{{ w.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">From Table #</label>
+            <input type="number" id="range-from" min="1" max="100" value="1" required class="w-full bg-[#1A1A1A] border border-white/15 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="block text-[11px] uppercase tracking-wider text-neutral-400 mb-1">To Table #</label>
+            <input type="number" id="range-to" min="1" max="100" value="5" required class="w-full bg-[#1A1A1A] border border-white/15 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-accent">
+          </div>
+          <div class="flex items-end">
+            <button type="submit" id="btn-assign-range" class="w-full bg-accent hover:bg-accent/90 text-white font-bold text-xs py-2 px-4 rounded-lg transition flex items-center justify-center gap-1.5 shadow-lg shadow-accent/20">
+              <iconify-icon icon="solar:check-circle-bold"></iconify-icon> Assign Table Range
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" id="tables-grid">
         {% for t in tables %}
-        <div class="bg-[#111] border border-white/5 hover:border-accent/40 rounded-xl p-3 text-center transition duration-300 relative group">
-          <a href="/admin/qr/{{ t.number }}.png" download="table-{{ t.number }}-qr.png">
-            <img src="/admin/qr/{{ t.number }}.png" class="w-full rounded-lg bg-white p-1">
-          </a>
-          <div class="text-xs text-neutral-400 mt-2">{{ t.label }}</div>
-          <div class="text-[10px] mt-0.5 {{ 'text-accent' if t.status=='occupied' else 'text-green-400' }}">{{ t.status }}</div>
-          <button onclick="deleteTable({{ t.id }})" class="absolute top-1 right-1 bg-red-500/80 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition">✕</button>
+        <div class="bg-[#111] border border-white/5 hover:border-accent/40 rounded-xl p-3 text-center transition duration-300 relative group flex flex-col justify-between">
+          <button onclick="deleteTable({{ t.id }})" class="absolute top-1 right-1 bg-red-500/80 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition z-10" title="Delete Table">✕</button>
+          <div>
+            <a href="/admin/qr/{{ t.number }}.png" download="table-{{ t.number }}-qr.png" title="Click to download QR">
+              <img src="/admin/qr/{{ t.number }}.png" class="w-full rounded-lg bg-white p-1">
+            </a>
+            <div class="text-xs font-bold text-white mt-2">{{ t.label }}</div>
+            <div class="flex items-center justify-center gap-2 mt-1">
+              <span class="text-[10px] {{ 'text-accent font-semibold' if t.status=='occupied' else 'text-green-400' }}">{{ t.status|capitalize }}</span>
+              <span class="text-neutral-600">·</span>
+              <button onclick="toggleTableQR({{ t.id }})" id="qr-status-{{ t.id }}" class="text-[10px] px-1.5 py-0.5 rounded cursor-pointer {{ 'bg-green-500/10 text-green-400 border border-green-500/30' if t.qr_enabled else 'bg-red-500/10 text-red-400 border border-red-500/30' }}">
+                {{ 'QR On' if t.qr_enabled else 'QR Off' }}
+              </button>
+            </div>
+            <!-- Assigned Waiter Badge & Inline Quick Assign -->
+            <div class="mt-2 text-left bg-white/5 border border-white/10 rounded-lg p-1.5">
+              <div class="text-[9px] uppercase tracking-wider text-neutral-400">Assigned Waiter:</div>
+              <div class="flex items-center justify-between gap-1 mt-0.5">
+                <span class="text-[11px] font-bold text-accent truncate">{{ t.assigned_waiter_name or 'Unassigned' }}</span>
+                <select onchange="quickAssignTableWaiter({{ t.id }}, this.value)" class="bg-[#1A1A1A] text-neutral-300 text-[10px] rounded px-1 py-0.5 border border-white/10 outline-none cursor-pointer">
+                  <option value="">Change...</option>
+                  {% for w in waiters %}
+                  <option value="{{ w.name }}" {{ 'selected' if t.assigned_waiter_name==w.name else '' }}>{{ w.name }}</option>
+                  {% endfor %}
+                  <option value="none">-- Clear --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-1 mt-2.5 pt-2 border-t border-white/5">
+            <button onclick="window.open('/admin/table/{{ t.number }}/print','_blank')" class="bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] py-1 rounded transition flex items-center justify-center gap-1" title="Print Stand Card">
+              <iconify-icon icon="solar:printer-2-linear"></iconify-icon> Print
+            </button>
+            <button onclick="regenerateTableToken({{ t.id }}, {{ t.number }})" class="bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] py-1 rounded transition flex items-center justify-center gap-1" title="Regenerate QR Token">
+              <iconify-icon icon="solar:restart-linear"></iconify-icon> Reset
+            </button>
+          </div>
         </div>
         {% endfor %}
+      </div>
+
+      <!-- TABLE CALL BELL AUDIT LOG -->
+      <div class="mt-10 pt-6 border-t border-white/10">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="font-forum text-xl text-white uppercase flex items-center gap-2">
+              <iconify-icon icon="solar:bell-bold" class="text-accent"></iconify-icon>
+              Customer Call Bell &amp; Service Requests
+            </h2>
+            <p class="text-neutral-500 text-xs mt-0.5">Live log of customer calls (Need Water, Cutlery, Bill, Assistance) from table QR sessions.</p>
+          </div>
+          <button onclick="loadAdminTableRequests()" class="bg-white/5 hover:bg-white/10 text-neutral-300 text-xs px-3 py-1.5 rounded-lg border border-white/10 transition flex items-center gap-1">
+            <iconify-icon icon="solar:refresh-linear"></iconify-icon> Refresh
+          </button>
+        </div>
+        <div class="bg-[#111] border border-white/5 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-white/5 text-neutral-400 font-semibold border-b border-white/10">
+                <tr>
+                  <th class="p-3">Time</th>
+                  <th class="p-3">Table</th>
+                  <th class="p-3">Request</th>
+                  <th class="p-3">Message</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3">Resolved By</th>
+                </tr>
+              </thead>
+              <tbody id="table-requests-tbody" class="divide-y divide-white/5 text-neutral-300">
+                <tr><td colspan="6" class="p-4 text-center text-neutral-500">Loading requests...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1420,6 +1534,7 @@ function showTab(name){
   if(name === 'promos' && typeof loadPromos === 'function') loadPromos();
   if(name === 'customers') loadCustomers();
   if(name === 'reservations') loadReservations();
+  if(name === 'tables') loadAdminTableRequests();
   // Close mobile sidebar
   if(window.innerWidth < 768){
     const sb=document.getElementById('admin-sidebar');
@@ -1450,6 +1565,110 @@ async function deleteTable(id){
   if(!confirm('Delete this table?')) return;
   await fetch('/api/admin/table/'+id+'/delete',{method:'POST'});
   location.reload();
+}
+
+async function toggleTableQR(id){
+  const res = await fetch('/api/admin/table/'+id+'/toggle-qr', {method:'POST'});
+  const d = await res.json();
+  if(d.ok){
+    const el = document.getElementById('qr-status-'+id);
+    if(el){
+      el.textContent = d.qr_enabled ? 'QR On' : 'QR Off';
+      el.className = 'text-[10px] px-1.5 py-0.5 rounded cursor-pointer ' +
+        (d.qr_enabled ? 'bg-green-500/10 text-green-400 border border-green-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30');
+    }
+  }
+}
+
+async function regenerateTableToken(id, num){
+  if(!confirm('Regenerate QR token for Table '+num+'? Any previously printed QR code for this table will be invalidated.')) return;
+  const res = await fetch('/api/admin/table/'+id+'/regenerate-token', {method:'POST'});
+  const d = await res.json();
+  if(d.ok){
+    alert('Table '+num+' QR token regenerated successfully. You can now print the new QR card.');
+    location.reload();
+  }
+}
+
+async function submitAssignRange(e){
+  e.preventDefault();
+  const waiterName = document.getElementById('range-waiter').value;
+  const fromTable = parseInt(document.getElementById('range-from').value);
+  const toTable = parseInt(document.getElementById('range-to').value);
+  if(!waiterName){ alert('Please select a waiter'); return; }
+  if(isNaN(fromTable) || isNaN(toTable) || fromTable > toTable){
+    alert('Invalid table range specified'); return;
+  }
+  const btn = document.getElementById('btn-assign-range');
+  btn.disabled = true;
+  try{
+    const res = await fetch('/api/admin/tables/assign-range', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({waiter_name: waiterName, from_table: fromTable, to_table: toTable})
+    });
+    const d = await res.json();
+    if(d.error){ alert(d.error); btn.disabled = false; return; }
+    alert(`Success: Assigned ${d.assigned_count} tables (Tables ${fromTable} to ${toTable}) to ${waiterName}!`);
+    location.reload();
+  }catch(err){
+    alert('Error: ' + err.message);
+    btn.disabled = false;
+  }
+}
+
+async function quickAssignTableWaiter(tableId, waiterName){
+  if(!waiterName) return;
+  const targetName = (waiterName === 'none') ? '' : waiterName;
+  try{
+    const res = await fetch(`/api/admin/table/${tableId}/assign-waiter`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({waiter_name: targetName})
+    });
+    const d = await res.json();
+    if(d.ok){
+      location.reload();
+    } else {
+      alert(d.error || 'Failed to assign waiter');
+    }
+  }catch(e){
+    alert('Error: ' + e.message);
+  }
+}
+
+
+async function loadAdminTableRequests(){
+  const tb = document.getElementById('table-requests-tbody');
+  if(!tb) return;
+  try{
+    const res = await fetch('/api/admin/table-requests');
+    const data = await res.json();
+    if(!data.length){
+      tb.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-neutral-500">No customer requests recorded yet.</td></tr>';
+      return;
+    }
+    const icons = { water:'💧', cutlery:'🍽️', tissue:'🧻', assistance:'👨‍🍳', bill:'💳', other:'🪑' };
+    tb.innerHTML = data.map(r => `
+      <tr class="hover:bg-white/[0.02]">
+        <td class="p-3 text-neutral-400 whitespace-nowrap">${r.time_str || r.created_at}</td>
+        <td class="p-3 font-bold text-white whitespace-nowrap">Table ${r.table_number}</td>
+        <td class="p-3 whitespace-nowrap">${icons[r.request_type]||'🔔'} <span class="capitalize">${r.request_type}</span></td>
+        <td class="p-3 text-neutral-300 max-w-xs truncate">${r.message || '—'}</td>
+        <td class="p-3 whitespace-nowrap">
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+            r.status==='completed' ? 'bg-green-500/10 text-green-400' :
+            r.status==='acknowledged' ? 'bg-blue-500/10 text-blue-400' :
+            r.status==='cancelled' ? 'bg-neutral-500/20 text-neutral-400' :
+            'bg-yellow-500/10 text-yellow-400 animate-pulse'
+          }">${r.status}</span>
+        </td>
+        <td class="p-3 text-neutral-400 whitespace-nowrap">${r.resolved_by || '—'}</td>
+      </tr>
+    `).join('');
+  }catch(e){
+    tb.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-red-400">Failed to load requests</td></tr>';
+  }
 }
 
 // ---- Reservations ----

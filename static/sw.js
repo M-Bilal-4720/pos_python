@@ -1,8 +1,9 @@
-const CACHE_NAME = 'maibistro-pos-v1';
+const CACHE_NAME = 'isb-pos-v2';
 const CACHE_URLS = [
   '/pos',
   '/static/favicon.jpg',
-  '/static/favicon.ico',
+  '/static/isb_qr_emblem.png',
+  '/static/theme.css'
 ];
 
 self.addEventListener('install', e => {
@@ -22,13 +23,22 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network first for API calls
-  if (e.request.url.includes('/api/')) {
+  // Always network-first for HTML pages, APIs, and QR routes
+  if (e.request.mode === 'navigate' || e.request.url.includes('/api/') || e.request.url.includes('/admin/qr/') || e.request.url.includes('/table/')) {
     e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
     return;
   }
-  // Cache first for static assets
+  // Stale-while-revalidate for static assets
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request).then(cached => {
+      const networked = fetch(e.request).then(res => {
+        if (res.ok && res.status === 200) {
+          const cacheCopy = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, cacheCopy));
+        }
+        return res;
+      }).catch(() => cached);
+      return cached || networked;
+    })
   );
 });

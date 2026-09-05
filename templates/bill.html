@@ -1,137 +1,449 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Bill {{ order.order_no }}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Receipt #{{ order.order_no }} — {{ restaurant.name }}</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#ccc;font-family:'Courier New',Courier,monospace;font-size:12px;color:#000;}
-.bar{background:#333;padding:8px 14px;display:flex;gap:8px;position:sticky;top:0;z-index:9;}
-.bar button,.bar a{padding:6px 14px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;border:none;text-decoration:none;}
-@media print{.bar{display:none;}body{background:#fff;}}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    background: #e5e7eb;
+    color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, monospace;
+    font-size: 12px;
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+  }
 
-.page{
-  width:{% if fmt=='thermal' %}80mm{% else %}210mm{% endif %};
-  margin:14px auto;background:#fff;
-  padding:{% if fmt=='thermal' %}6mm 5mm{% else %}16mm 18mm{% endif %};
-}
-@media print{.page{width:100%;margin:0;padding:8mm;}}
+  /* Control bar (hidden during print) */
+  .bar {
+    background: #111827;
+    color: #fff;
+    padding: 10px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .bar button, .bar a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .bar button:hover, .bar a:hover { opacity: 0.9; }
+  .btn-print { background: #16a34a; color: #fff; font-size: 13px; }
+  .btn-mode  { background: #374151; color: #e5e7eb; }
+  .btn-active { background: #C65A1E; color: #fff; }
+  .btn-close { background: #4b5563; color: #fff; margin-left: auto; }
 
-/* Header - text only, no logo */
-.hd{text-align:center;padding-bottom:8px;margin-bottom:8px;border-bottom:2px solid #000;}
-.hd .rn{font-size:{% if fmt=='thermal' %}15px{% else %}18px{% endif %};font-weight:900;letter-spacing:2px;text-transform:uppercase;}
-.hd .ra{font-size:10px;color:#333;margin-top:2px;}
-.hd .rp{font-size:10px;margin-top:2px;}
+  /* Page Wrapper */
+  .page {
+    background: #fff;
+    margin: 20px auto;
+    color: #000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    {% if fmt == 'a4' %}
+      width: 210mm;
+      padding: 16mm 18mm;
+      border-radius: 4px;
+    {% elif fmt == '58mm' %}
+      width: 58mm;
+      padding: 3mm 2mm;
+      border-radius: 2px;
+    {% else %}
+      /* 80mm Standard Thermal Roll */
+      width: 80mm;
+      padding: 5mm 4mm;
+      border-radius: 2px;
+    {% endif %}
+  }
 
-hr.d{border:none;border-top:1px dashed #000;margin:6px 0;}
-hr.s{border:none;border-top:2px solid #000;margin:6px 0;}
+  /* Typography & Tables */
+  .text-center { text-align: center; }
+  .text-right  { text-align: right; }
+  .text-bold   { font-weight: 800; }
+  .uppercase   { text-transform: uppercase; }
 
-.meta{font-size:10px;margin-bottom:6px;}
-.mr{display:flex;justify-content:space-between;margin-bottom:2px;}
+  /* Header */
+  .hd {
+    text-align: center;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 2px solid #000;
+  }
+  .hd .rn {
+    font-size: {% if fmt == '58mm' %}14px{% elif fmt == 'a4' %}20px{% else %}16px{% endif %};
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    margin-bottom: 3px;
+  }
+  .hd .ra {
+    font-size: {% if fmt == '58mm' %}9px{% else %}10.5px{% endif %};
+    line-height: 1.3;
+  }
+  .hd .rp {
+    font-size: {% if fmt == '58mm' %}9.5px{% else %}11px{% endif %};
+    font-weight: 700;
+    margin-top: 2px;
+  }
 
-table.it{width:100%;border-collapse:collapse;margin-bottom:6px;font-size:{% if fmt=='thermal' %}10px{% else %}11px{% endif %};}
-table.it th{text-align:left;font-weight:900;border-bottom:1px solid #000;padding:3px 0;}
-table.it th.r{text-align:right;}
-table.it td{padding:3px 0;vertical-align:top;border-bottom:1px dotted #ccc;}
-table.it td.r{text-align:right;font-weight:700;}
-.iname{font-weight:700;}
-.iaddon{font-size:9px;color:#444;}
-.isub{font-size:9px;color:#555;}
+  /* Dividers - crisp pitch black */
+  hr.dash {
+    border: none;
+    border-top: 1.5px dashed #000;
+    margin: 6px 0;
+  }
+  hr.solid {
+    border: none;
+    border-top: 2px solid #000;
+    margin: 6px 0;
+  }
+  hr.double {
+    border: none;
+    border-top: 3px double #000;
+    margin: 6px 0;
+  }
 
-.tots{font-size:{% if fmt=='thermal' %}10px{% else %}12px{% endif %};}
-.tr{display:flex;justify-content:space-between;padding:2px 0;}
-.tr.grand{font-size:{% if fmt=='thermal' %}14px{% else %}16px{% endif %};font-weight:900;padding:4px 0;}
+  /* Meta Details */
+  .meta {
+    font-size: {% if fmt == '58mm' %}9.5px{% else %}11px{% endif %};
+    margin: 4px 0;
+  }
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+  }
+  .badge-table {
+    display: inline-block;
+    border: 1.5px solid #000;
+    font-weight: 900;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: {% if fmt == '58mm' %}11px{% else %}13px{% endif %};
+  }
 
-.ft{font-size:10px;margin-top:6px;}
-.fr{display:flex;justify-content:space-between;margin-bottom:2px;}
-.ps{font-size:{% if fmt=='thermal' %}13px{% else %}15px{% endif %};font-weight:900;text-align:center;letter-spacing:2px;margin:8px 0;}
-.ty{font-size:{% if fmt=='thermal' %}11px{% else %}13px{% endif %};font-weight:900;text-align:center;margin:6px 0;}
-.pw{font-size:9px;text-align:center;color:#666;margin-top:6px;}
+  /* Items Table */
+  table.items {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0;
+    font-size: {% if fmt == '58mm' %}10px{% elif fmt == 'a4' %}12px{% else %}11px{% endif %};
+  }
+  table.items th {
+    text-align: left;
+    font-weight: 900;
+    border-bottom: 1.5px solid #000;
+    padding: 4px 0;
+    font-size: {% if fmt == '58mm' %}9.5px{% else %}11px{% endif %};
+  }
+  table.items th.r { text-align: right; }
+  table.items td {
+    padding: 4px 0;
+    vertical-align: top;
+    border-bottom: 1px dashed #444;
+  }
+  table.items td.r {
+    text-align: right;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .item-name {
+    font-weight: 800;
+    color: #000;
+  }
+  .item-sub {
+    font-size: {% if fmt == '58mm' %}9px{% else %}10px{% endif %};
+    color: #111;
+  }
+  .item-note {
+    font-size: 9px;
+    font-style: italic;
+    color: #222;
+  }
+
+  /* Totals */
+  .totals {
+    font-size: {% if fmt == '58mm' %}10.5px{% else %}12px{% endif %};
+    margin: 4px 0;
+  }
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+  }
+  .total-row.grand {
+    font-size: {% if fmt == '58mm' %}14px{% elif fmt == 'a4' %}18px{% else %}16px{% endif %};
+    font-weight: 900;
+    padding: 4px 0;
+    letter-spacing: 0.5px;
+  }
+  .total-row.tender {
+    font-weight: 800;
+    font-size: {% if fmt == '58mm' %}11.5px{% else %}13px{% endif %};
+  }
+
+  /* Status Banner */
+  .status-banner {
+    text-align: center;
+    font-size: {% if fmt == '58mm' %}13px{% else %}15px{% endif %};
+    font-weight: 900;
+    letter-spacing: 2px;
+    padding: 4px 0;
+    margin: 6px 0;
+    border: 2px solid #000;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    font-size: {% if fmt == '58mm' %}9px{% else %}10.5px{% endif %};
+    margin-top: 8px;
+    line-height: 1.4;
+  }
+
+  /* Print Stylesheet */
+  @media print {
+    @page {
+      {% if fmt == 'a4' %}
+        size: A4 portrait;
+        margin: 12mm;
+      {% elif fmt == '58mm' %}
+        size: 58mm auto;
+        margin: 0mm;
+      {% else %}
+        size: 80mm auto;
+        margin: 0mm;
+      {% endif %}
+    }
+
+    body {
+      background: #fff !important;
+      color: #000 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      font-size: {% if fmt == '58mm' %}10px{% elif fmt == 'a4' %}12px{% else %}11px{% endif %} !important;
+    }
+
+    .bar {
+      display: none !important;
+    }
+
+    .page {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+      padding: {% if fmt == 'a4' %}0{% elif fmt == '58mm' %}2mm 2mm{% else %}3mm 4mm{% endif %} !important;
+      page-break-inside: avoid;
+    }
+
+    /* Force all text to solid pitch-black for thermal heads */
+    *, th, td, span, div, p {
+      color: #000000 !important;
+    }
+  }
 </style>
 </head>
 <body>
+
 <div class="bar">
-  <button style="background:#16a34a;color:#fff;" onclick="window.print()">🖨 Print</button>
-  <a style="background:#fff;color:#333;" href="/bill/{{ order.id }}?format=a4">A4</a>
-  <a style="background:#555;color:#fff;" href="/bill/{{ order.id }}?format=thermal">Thermal</a>
-  <button style="background:#444;color:#ccc;" onclick="window.close()">✕</button>
+  <button class="btn-print" onclick="window.print()">🖨 Print Receipt</button>
+  <a class="btn-mode {% if fmt != 'a4' and fmt != '58mm' %}btn-active{% endif %}" href="/bill/{{ order.id }}?format=thermal">80mm Thermal</a>
+  <a class="btn-mode {% if fmt == '58mm' %}btn-active{% endif %}" href="/bill/{{ order.id }}?format=58mm">58mm Mini</a>
+  <a class="btn-mode {% if fmt == 'a4' %}btn-active{% endif %}" href="/bill/{{ order.id }}?format=a4">📄 A4 Invoice</a>
+  <button class="btn-close" onclick="window.close()">✕ Close</button>
 </div>
 
 <div class="page">
-  <!-- HEADER - text only -->
+  <!-- HEADER -->
   <div class="hd">
     <div class="rn">{{ restaurant.name }}</div>
     <div class="ra">{{ restaurant.address }}</div>
     {% if restaurant.phone %}<div class="rp">Tel: {{ restaurant.phone }}</div>{% endif %}
+    <div class="ra" style="margin-top:2px;">{{ restaurant.tagline }}</div>
   </div>
 
-  <!-- META -->
+  <!-- META DETAILS -->
   <div class="meta">
-    <div class="mr"><span>Date: {{ order.created_at.strftime('%d/%m/%Y %H:%M') }}</span><span>{% if order.source=='grab' %}GRAB{% elif order.source=='foodpanda' %}FOODPANDA{% elif order.source=='lalamove' %}LALAMOVE{% elif order.source=='shopee' %}SHOPEE{% elif order.source=='qr' %}QR{% elif order.source=='online' %}ONLINE{% else %}POS{% endif %}</span></div>
-    <div class="mr"><span>Invoice: <b>{{ order.order_no }}</b></span>{% if order.token_no %}<span>Token: <b>{{ order.token_no }}</b></span>{% endif %}</div>
-    {% if order.table_number %}<div class="mr"><span>Table: <b>{{ order.table_number }}</b></span><span>Type: {{ order.order_type }}</span></div>{% endif %}
-    {% if order.takeaway_no %}<div class="mr"><span>Takeaway #: <b>{{ order.takeaway_no }}</b></span></div>{% endif %}
-    {% if order.platform_order_id %}<div class="mr"><span>Ref: {{ order.platform_order_id }}</span></div>{% endif %}
+    <div class="meta-row">
+      <span>Date: <b>{{ order.created_at.strftime('%d/%m/%Y %H:%M') }}</b></span>
+      <span class="uppercase"><b>{% if order.source=='grab' %}GRAB{% elif order.source=='foodpanda' %}FOODPANDA{% elif order.source=='customer_qr' %}TABLE QR{% elif order.source=='waiter_tablet' %}WAITER{% elif order.source=='manager_tablet' %}MANAGER{% else %}POS COUNTER{% endif %}</b></span>
+    </div>
+    
+    <div class="meta-row">
+      <span>Receipt: <b>{{ order.order_no }}</b></span>
+      {% if order.token_no %}<span>Token: <b style="font-size:13px;">{{ order.token_no }}</b></span>{% endif %}
+    </div>
+
+    <div class="meta-row" style="align-items:center;">
+      {% if order.table_number %}
+      <div>Table: <span class="badge-table">TABLE {{ order.table_number }}</span></div>
+      {% else %}
+      <div>Type: <b>{{ order.order_type|upper }}</b></div>
+      {% endif %}
+      {% if order.takeaway_no %}<span>Takeaway: <b>#{{ order.takeaway_no }}</b></span>{% endif %}
+    </div>
+
+    {% if order.waiter_name %}
+    <div class="meta-row">
+      <span>Waiter: <b>{{ order.waiter_name }}</b></span>
+      {% if order.table_number %}<span>Type: <b>{{ order.order_type|upper }}</b></span>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if order.customer_name and order.customer_name != 'Walk-In' and not order.customer_name.startswith('Table ') %}
+    <div class="meta-row">
+      <span>Guest: <b>{{ order.customer_name }}</b></span>
+      {% if order.customer_phone %}<span>Tel: {{ order.customer_phone }}</span>{% endif %}
+    </div>
+    {% endif %}
   </div>
 
-  <hr class="d">
+  <hr class="dash">
 
-  <!-- ITEMS -->
-  <table class="it">
-    <thead><tr><th>Item</th><th class="r">Total</th></tr></thead>
+  <!-- ITEMS TABLE -->
+  <table class="items">
+    <thead>
+      <tr>
+        <th>ITEM</th>
+        <th class="text-center" style="width:36px;">QTY</th>
+        <th class="r" style="width:65px;">TOTAL</th>
+      </tr>
+    </thead>
     <tbody>
-    {% for i in order.items %}
-    <tr>
-      <td>
-        <div class="iname">{{ i.name }}{% if i.size %} ({{ i.size }}){% endif %}</div>
-        {% if i.addons %}<div class="iaddon">+ {{ i.addons|map(attribute='name')|join(', ') }}</div>{% endif %}
-        {% if i.notes %}<div class="isub">"{{ i.notes }}"</div>{% endif %}
-        <div class="isub">RM{{ "%.2f"|format(i.unit_price + i.addons_total) }} x {{ i.qty }}</div>
-      </td>
-      <td class="r">RM{{ "%.2f"|format(i.line_total) }}</td>
-    </tr>
-    {% endfor %}
+      {% for i in order.items %}
+      <tr>
+        <td>
+          <div class="item-name">{{ i.name }}{% if i.size %} ({{ i.size }}){% endif %}</div>
+          {% if i.addons %}
+          <div class="item-sub">+ {{ i.addons|map(attribute='name')|join(', ') }}</div>
+          {% endif %}
+          {% if i.notes %}
+          <div class="item-note">"{{ i.notes }}"</div>
+          {% endif %}
+        </td>
+        <td class="text-center" style="font-weight:800; vertical-align:top;">
+          {{ i.qty }}
+        </td>
+        <td class="r">
+          RM{{ "%.2f"|format(i.line_total) }}
+        </td>
+      </tr>
+      {% endfor %}
     </tbody>
   </table>
 
-  <hr class="d">
+  <hr class="dash">
 
   <!-- TOTALS -->
-  <div class="tots">
-    <div class="tr"><span>Subtotal</span><span>RM{{ "%.2f"|format(order.subtotal) }}</span></div>
-    <div class="tr"><span>VAT (6%)</span><span>RM{{ "%.2f"|format(order.tax) }}</span></div>
+  <div class="totals">
+    <div class="total-row">
+      <span>Subtotal</span>
+      <span>RM{{ "%.2f"|format(order.subtotal) }}</span>
+    </div>
+    
+    {% if order.tax and order.tax > 0 %}
+    <div class="total-row">
+      <span>SST / Tax (6%)</span>
+      <span>RM{{ "%.2f"|format(order.tax) }}</span>
+    </div>
+    {% endif %}
+
     {% if order.service_charge and order.service_charge > 0 %}
-    <div class="tr"><span>Service Charge</span><span>RM{{ "%.2f"|format(order.service_charge) }}</span></div>
+    <div class="total-row">
+      <span>Service Charge</span>
+      <span>RM{{ "%.2f"|format(order.service_charge) }}</span>
+    </div>
     {% endif %}
+
     {% if order.discount_amount and order.discount_amount > 0 %}
-    <div class="tr"><span>Discount{% if order.discount_type=='percent' %} ({{ "%.0f"|format(order.discount_value) }}%){% endif %}</span><span>- RM{{ "%.2f"|format(order.discount_amount) }}</span></div>
-    {% endif %}
-  </div>
-  <hr class="s">
-  <div class="tots">
-    <div class="tr grand"><span>GRAND TOTAL</span><span>RM{{ "%.2f"|format(order.total) }}</span></div>
-  </div>
-  <hr class="s">
-  <div class="tots">
-    {% if order.customer_paid and order.customer_paid > 0 %}
-    <div class="tr"><span>Cash Received</span><span>RM{{ "%.2f"|format(order.customer_paid) }}</span></div>
-    <div class="tr"><span>Change</span><span>RM{{ "%.2f"|format(order.change_due) }}</span></div>
+    <div class="total-row" style="font-weight:700;">
+      <span>Discount{% if order.discount_type=='percent' %} ({{ "%.0f"|format(order.discount_value) }}%){% endif %}</span>
+      <span>- RM{{ "%.2f"|format(order.discount_amount) }}</span>
+    </div>
     {% endif %}
   </div>
 
-  <hr class="d">
+  <hr class="solid">
+
+  <!-- GRAND TOTAL -->
+  <div class="totals">
+    <div class="total-row grand">
+      <span>GRAND TOTAL</span>
+      <span>RM{{ "%.2f"|format(order.total) }}</span>
+    </div>
+  </div>
+
+  <hr class="solid">
+
+  <!-- CASH & PAYMENT BREAKDOWN -->
+  <div class="totals">
+    <div class="total-row">
+      <span>Payment Method:</span>
+      <span class="text-bold uppercase">{{ order.payment_method or 'COUNTER' }}</span>
+    </div>
+
+    {% if order.customer_paid and order.customer_paid > 0 %}
+    <div class="total-row tender">
+      <span>Cash Tendered:</span>
+      <span>RM{{ "%.2f"|format(order.customer_paid) }}</span>
+    </div>
+    <div class="total-row tender" style="font-size:14px;">
+      <span>Change Due:</span>
+      <span class="text-bold">RM{{ "%.2f"|format(order.change_due) }}</span>
+    </div>
+    {% endif %}
+    
+    {% if order.payment_ref %}
+    <div class="total-row" style="font-size:9.5px; color:#222;">
+      <span>Ref / Trans ID:</span>
+      <span>{{ order.payment_ref }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- PAYMENT STATUS BANNER -->
+  {% if order.payment_status == 'paid' %}
+  <div class="status-banner">*** PAID ***</div>
+  {% elif order.payment_status == 'pay_at_counter' %}
+  <div class="status-banner" style="letter-spacing:1px; font-size:12px;">*** PAY AT COUNTER ***</div>
+  {% else %}
+  <div class="status-banner">*** UNPAID ***</div>
+  {% endif %}
 
   <!-- FOOTER -->
-  <div class="ft">
-    <div class="fr"><span>Customer: <b>{{ order.customer_name or 'Walk-In' }}</b></span><span>Staff: <b>{{ order.waiter_name or '-' }}</b></span></div>
-    <div class="fr"><span>Method: <b>{{ order.payment_method|upper }}</b></span><span>{{ order.order_type }}</span></div>
+  <div class="footer">
+    <div style="font-weight:800; margin-bottom:3px;">*** THANK YOU FOR DINING WITH US ***</div>
+    <div>Please retain this receipt for your reference.</div>
+    <div style="font-size:9px; margin-top:4px;">{{ restaurant.name }} · Kuala Lumpur</div>
   </div>
-
-  <hr class="s">
-  <div class="ps">{{ 'PAID' if order.payment_status=='paid' else 'UNPAID' }}</div>
-  <hr class="d">
-  <div class="ty">*** THANK YOU ***</div>
-  <div class="pw">{{ restaurant.name }} | {{ restaurant.address }}</div>
 </div>
+
+<script>
+  // Autoprint if launched from POS
+  if (new URLSearchParams(window.location.search).get('autoprint') === '1') {
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        window.print();
+      }, 350);
+    });
+  }
+</script>
+
 </body>
 </html>

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All Table QR Stand Cards — {{ restaurant.name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Forum&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f3f4f6;
+    font-family: 'Open Sans', sans-serif;
+    color: #1f2937;
+    padding: 24px;
+  }
+  .no-print-bar {
+    max-width: 900px;
+    margin: 0 auto 24px auto;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #C65A1E;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .btn-outline {
+    background: #fff;
+    color: #374151;
+    border: 1.5px solid #d1d5db;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+    border: 1.5px solid #e5e7eb;
+    padding: 24px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, #C65A1E, #e07a3f, #C65A1E);
+  }
+  .rest-name {
+    font-family: 'Forum', serif;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #111827;
+    margin-bottom: 2px;
+  }
+  .tagline {
+    font-size: 10px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+  .table-badge {
+    display: inline-block;
+    background: #fef2f2;
+    border: 1.5px solid #C65A1E;
+    color: #C65A1E;
+    font-size: 18px;
+    font-weight: 800;
+    padding: 4px 20px;
+    border-radius: 999px;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+  .qr-wrap {
+    background: #f9fafb;
+    border: 1.5px dashed #d1d5db;
+    border-radius: 14px;
+    padding: 12px;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
+  .qr-wrap img {
+    width: 170px;
+    height: 170px;
+    display: block;
+    border-radius: 6px;
+  }
+  .instructions {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .inst-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .inst-steps {
+    font-size: 10.5px;
+    color: #4b5563;
+    line-height: 1.4;
+    text-align: left;
+    list-style-position: inside;
+  }
+  .footer-note {
+    font-size: 9px;
+    color: #9ca3af;
+  }
+
+  @media print {
+    body {
+      background: #fff;
+      padding: 0;
+    }
+    .no-print-bar {
+      display: none !important;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: none;
+    }
+    .card {
+      box-shadow: none;
+      border: 1px solid #ccc;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="no-print-bar">
+  <div>
+    <h1 style="font-size:18px;font-weight:800;color:#111827;">All Table QR Stand Cards</h1>
+    <div style="font-size:12px;color:#6b7280;">{{ tables|length }} tables ready to print</div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn" onclick="window.print()">
+      <iconify-icon icon="solar:printer-2-linear" width="18"></iconify-icon> Print All Cards
+    </button>
+    <a href="/mb-console-2024" class="btn btn-outline">
+      <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon> Back to Admin
+    </a>
+  </div>
+</div>
+
+<div class="grid">
+  {% for table in tables %}
+  <div class="card">
+  <div style="display:inline-flex;width:44px;height:44px;border-radius:50%;border:1.5px solid #C65A1E;overflow:hidden;margin-bottom:8px;">
+    <img src="{{ restaurant.logo_light_mode_url or restaurant.logo_dark_mode_url or '/static/favicon.jpg' }}" alt="Logo" style="width:100%;height:100%;object-fit:cover;">
+  </div>
+  <div class="rest-name">{{ restaurant.name }}</div>
+    <div class="tagline">{{ restaurant.tagline }}</div>
+
+    <div class="table-badge">TABLE {{ table.number }}</div>
+
+    <div class="qr-wrap">
+      <img src="/admin/qr/{{ table.number }}.png" alt="Table {{ table.number }} QR">
+    </div>
+
+    <div class="instructions">
+      <div class="inst-title">
+        <iconify-icon icon="solar:smartphone-linear" style="color:#C65A1E;"></iconify-icon>
+        Scan with Phone Camera
+      </div>
+      <div class="inst-steps">
+        <div>• No app/login needed — scan & order</div>
+        <div>• Food & drinks delivered to table</div>
+        <div>• Tap <b>🔔 Call Staff</b> anytime for water/service</div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      Table token: {{ table.token[:8] }}... · {{ restaurant.address }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+</body>
+</html>
+

@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{{ restaurant.name }} — Staff Tablet POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Forum&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            accent: '#C65A1E',
+            'accent-hover': '#A84815',
+            'dark-bg': '#0D0E12',
+            'card-bg': '#16181F',
+            'border-subtle': 'rgba(255,255,255,0.08)',
+          },
+          fontFamily: {
+            forum: ['Forum', 'serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0D0E12;
+      color: #E2E8F0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .badge-pulse { animation: pulseGlow 2s infinite; }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); }
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-dark-bg text-slate-100">
+
+  <!-- TOP APP BAR -->
+  <header class="h-14 bg-[#121318] border-b border-border-subtle px-4 flex items-center justify-between flex-shrink-0 z-30">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-accent/20 border border-accent/40 flex items-center justify-center text-accent font-bold">
+        <iconify-icon icon="solar:chef-hat-bold" class="text-xl"></iconify-icon>
+      </div>
+      <div>
+        <div class="text-sm font-bold tracking-tight text-white leading-tight">{{ restaurant.name }}</div>
+        <div class="text-[10px] text-neutral-400">Staff Tablet Portal</div>
+      </div>
+    </div>
+
+    <!-- Active Staff & Role -->
+    <div class="flex items-center gap-2 sm:gap-4">
+      <div class="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
+        <span class="w-2 h-2 rounded-full {{ 'bg-emerald-400' if staff_role=='waiter' else 'bg-amber-400' }} animate-pulse"></span>
+        <span class="text-xs font-semibold text-white capitalize">{{ staff_name }}</span>
+        <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full {{ 'bg-accent/20 text-accent border border-accent/30' if staff_role=='manager' else 'bg-blue-500/20 text-blue-400 border border-blue-500/30' }}">
+          {{ staff_role }}
+        </span>
+      </div>
+
+      {% if assigned_tables %}
+      <div class="hidden md:flex items-center gap-1.5 text-xs text-neutral-300 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+        <iconify-icon icon="solar:chair-linear" class="text-accent"></iconify-icon>
+        <span>My Tables:</span>
+        <span class="font-bold text-accent">
+          {% for at in assigned_tables %}{{ at.number }}{% if not loop.last %}, {% endif %}{% endfor %}
+        </span>
+      </div>
+      {% endif %}
+
+      <div id="live-clock" class="text-xs text-neutral-400 hidden lg:block font-mono">00:00:00</div>
+
+      <a href="/logout" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1 transition" title="Logout">
+        <iconify-icon icon="solar:logout-2-linear"></iconify-icon>
+        <span class="hidden sm:inline">Logout</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-[#14161D] border-b border-border-subtle px-3 py-1.5 flex items-center gap-2 flex-shrink-0 overflow-x-auto custom-scroll">
+    <button onclick="switchTab('calls')" id="tab-btn-calls" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition bg-accent text-white shadow-sm">
+      <iconify-icon icon="solar:bell-bold"></iconify-icon>
+      <span>Service Calls</span>
+      <span id="badge-calls-count" class="bg-red-600 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full hidden">0</span>
+    </button>
+
+    <button onclick="switchTab('tables')" id="tab-btn-tables" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white transition">
+      <iconify-icon icon="solar:chair-bold"></iconify-icon>
+      <span>{{ 'My Assigned Tables' if staff_role=='waiter' else 'All Tables' }}</span>
+      <span id="badge-assigned-count" class="bg-white/10 text-neutral-300 text-[10px] px-1.5 py-0.2 rounded-full">{{ assigned_tables|length if staff_role=='waiter' else tables|length }}</span>
+    </button>
+
+    <button onclick="switchTab('take-order')" id="tab-btn-take-order" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white transition">
+      <iconify-icon icon="solar:pen-new-square-bold"></iconify-icon>
+      <span>Take Order</span>
+    </button>
+
+    <button onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white transition">
+      <iconify-icon icon="solar:clipboard-list-bold"></iconify-icon>
+      <span>My Active Orders</span>
+      <span id="badge-orders-count" class="bg-white/10 text-neutral-300 text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+    </button>
+
+    {% if staff_role in ('admin', 'cashier') %}
+    <a href="/pos" class="ml-auto text-xs text-neutral-400 hover:text-white bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg flex items-center gap-1">
+      <iconify-icon icon="solar:laptop-minimalistic-linear"></iconify-icon> POS Mode
+    </a>
+    {% endif %}
+  </nav>
+
+  <!-- MAIN TAB PANELS -->
+  <main class="flex-1 overflow-hidden relative">
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB 1: SERVICE CALLS (CUSTOMER CALL BELL)
+         ════════════════════════════════════════════════════════════ -->
+    <section id="panel-calls" class="tab-panel h-full overflow-y-auto custom-scroll p-4 sm:p-6">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h1 class="font-forum text-2xl text-white uppercase tracking-wider flex items-center gap-2">
+              <iconify-icon icon="solar:bell-bold" class="text-accent"></iconify-icon>
+              Customer Table Calls &amp; Bell
+            </h1>
+            <p class="text-xs text-neutral-400 mt-0.5">
+              {% if staff_role == 'waiter' %}
+                Real-time service alerts from your assigned tables ({{ assigned_tables|map(attribute='number')|join(', ') }}).
+              {% else %}
+                All live service alerts from dining tables.
+              {% endif %}
+            </p>
+          </div>
+          <button onclick="fetchStaffCalls(true)" class="bg-white/5 hover:bg-white/10 border border-white/10 text-xs px-3 py-1.5 rounded-lg text-neutral-300 flex items-center gap-1.5 transition">
+            <iconify-icon icon="solar:refresh-linear"></iconify-icon> Refresh
+          </button>
+        </div>
+
+        <div id="calls-container" class="grid gap-3 sm:gap-4">
+          <div class="text-center py-16 text-neutral-500 text-sm">
+            <iconify-icon icon="solar:bell-linear" class="text-5xl text-neutral-600 block mx-auto mb-2"></iconify-icon>
+            No active table requests right now.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB 2: MY TABLES (TABLES GRID)
+         ════════════════════════════════════════════════════════════ -->
+    <section id="panel-tables" class="tab-panel hidden h-full overflow-y-auto custom-scroll p-4 sm:p-6">
+      <div class="max-w-5xl mx-auto">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h1 class="font-forum text-2xl text-white uppercase tracking-wider flex items-center gap-2">
+              <iconify-icon icon="solar:chair-bold" class="text-accent"></iconify-icon>
+              {{ 'My Assigned Dining Tables' if staff_role=='waiter' else 'Restaurant Dining Tables' }}
+            </h1>
+            <p class="text-xs text-neutral-400 mt-0.5">Select a table to start an order or view status.</p>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Free</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-accent"></span> Occupied</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+          {% for t in (assigned_tables if staff_role=='waiter' else tables) %}
+          <div class="bg-card-bg border {{ 'border-accent/40 shadow-[0_0_15px_rgba(198,90,30,0.15)]' if t.status=='occupied' else 'border-border-subtle' }} rounded-xl p-4 flex flex-col justify-between transition hover:border-accent">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="font-forum text-xl text-white font-bold">{{ t.label }}</div>
+                <div class="text-[11px] text-neutral-400">Table #{{ t.number }}</div>
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-accent/20 text-accent border border-accent/40' if t.status=='occupied' else 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' }}">
+                {{ t.status|capitalize }}
+              </span>
+            </div>
+
+            <div class="my-3 text-xs">
+              <div class="text-neutral-400 text-[11px]">Assigned Staff:</div>
+              <div class="font-semibold text-slate-200 flex items-center gap-1 mt-0.5">
+                <iconify-icon icon="solar:user-linear" class="text-accent text-sm"></iconify-icon>
+                {{ t.assigned_waiter_name or 'Unassigned' }}
+              </div>
+            </div>
+
+            <button onclick="startOrderForTable({{ t.number }})" class="w-full bg-white/10 hover:bg-accent text-white font-semibold text-xs py-2 rounded-lg flex items-center justify-center gap-1.5 transition">
+              <iconify-icon icon="solar:pen-new-square-linear"></iconify-icon> Take Order
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB 3: TAKE ORDER (TOUCH MENU & ORDER PUNCHING)
+         ════════════════════════════════════════════════════════════ -->
+    <section id="panel-take-order" class="tab-panel hidden h-full flex flex-col md:flex-row overflow-hidden">
+      <!-- Left: Menu Items Catalog -->
+      <div class="flex-1 flex flex-col h-full overflow-hidden border-r border-border-subtle">
+        <!-- Filter bar: Table selector & Categories -->
+        <div class="bg-[#121318] p-3 border-b border-border-subtle flex flex-col gap-2">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 bg-card-bg border border-border-subtle rounded-lg px-3 py-1.5 text-xs">
+              <span class="text-neutral-400 font-medium">Table:</span>
+              <select id="punch-table-select" class="bg-transparent text-white font-bold outline-none cursor-pointer">
+                {% if staff_role == 'waiter' %}
+                  {% for t in assigned_tables %}
+                    <option value="{{ t.number }}" class="bg-[#1A1C23]">Table {{ t.number }}</option>
+                  {% endfor %}
+                  {% if not assigned_tables %}
+                    {% for t in tables %}
+                      <option value="{{ t.number }}" class="bg-[#1A1C23]">Table {{ t.number }}</option>
+                    {% endfor %}
+                  {% endif %}
+                {% else %}
+                  {% for t in tables %}
+                    <option value="{{ t.number }}" class="bg-[#1A1C23]">Table {{ t.number }} ({{ t.assigned_waiter_name or 'No Waiter' }})</option>
+                  {% endfor %}
+                {% endif %}
+              </select>
+            </div>
+
+            <div class="flex-1 relative">
+              <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-2.5 text-neutral-400 text-sm"></iconify-icon>
+              <input type="text" id="menu-search-input" oninput="filterMenuItems()" placeholder="Search dishes..." class="w-full bg-card-bg border border-border-subtle rounded-lg pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-accent">
+            </div>
+          </div>
+
+          <!-- Category Pills -->
+          <div class="flex items-center gap-1.5 overflow-x-auto custom-scroll pb-1">
+            <button onclick="selectCategory('all')" class="cat-pill active px-3 py-1 rounded-full text-xs font-semibold bg-accent text-white flex-shrink-0 transition">All</button>
+            {% for cat, items in grouped.items() %}
+            <button onclick="selectCategory('{{ cat }}')" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-card-bg border border-border-subtle text-neutral-300 hover:text-white flex-shrink-0 transition">
+              {{ cat }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Dishes Grid -->
+        <div class="flex-1 overflow-y-auto custom-scroll p-3 sm:p-4">
+          <div id="dishes-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {% for cat, items in grouped.items() %}
+              {% for item in items %}
+              <div class="dish-card bg-card-bg border border-border-subtle hover:border-accent/60 rounded-xl p-3 flex flex-col justify-between cursor-pointer transition active:scale-[0.98]"
+                   data-category="{{ item.category }}"
+                   data-name="{{ item.name|lower }}"
+                   onclick="addToCart({{ item.id }}, '{{ item.name|replace("'", "\\'") }}', {{ item.price_full or item.price_half or 0 }})">
+                <div>
+                  {% if item.image_url %}
+                  <img src="{{ item.image_url }}" alt="{{ item.name }}" class="w-full h-24 sm:h-28 object-cover rounded-lg mb-2" loading="lazy">
+                  {% else %}
+                  <div class="w-full h-24 sm:h-28 bg-white/5 rounded-lg mb-2 flex items-center justify-center text-neutral-500">
+                    <iconify-icon icon="solar:chef-hat-linear" class="text-3xl"></iconify-icon>
+                  </div>
+                  {% endif %}
+                  <div class="font-bold text-xs sm:text-sm text-white line-clamp-1">{{ item.name }}</div>
+                  <div class="text-[10px] text-neutral-400 mt-0.5 line-clamp-1">{{ item.description or item.category }}</div>
+                </div>
+                <div class="mt-2.5 flex items-center justify-between pt-2 border-t border-white/5">
+                  <span class="text-xs font-bold text-emerald-400">RM {{ "%.2f"|format(item.price_full or item.price_half or 0) }}</span>
+                  <span class="w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center font-bold text-sm">+</span>
+                </div>
+              </div>
+              {% endfor %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Current Cart & Submit Drawer -->
+      <div class="w-full md:w-80 lg:w-96 bg-[#121318] flex flex-col h-72 md:h-full border-t md:border-t-0 border-border-subtle flex-shrink-0">
+        <div class="p-3 border-b border-border-subtle flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <iconify-icon icon="solar:cart-large-2-bold" class="text-accent text-lg"></iconify-icon>
+            <span class="font-bold text-sm text-white">Order Cart</span>
+            <span id="cart-items-count" class="bg-accent/20 text-accent text-[10px] font-extrabold px-2 py-0.5 rounded-full">0</span>
+          </div>
+          <button onclick="clearCart()" class="text-[11px] text-red-400 hover:text-red-300">Clear</button>
+        </div>
+
+        <!-- Cart List -->
+        <div id="cart-list" class="flex-1 overflow-y-auto custom-scroll p-3 space-y-2">
+          <div class="text-center py-10 text-neutral-500 text-xs">
+            Cart is empty.<br>Tap any dish on the left to add.
+          </div>
+        </div>
+
+        <!-- Cart Footer & Punch Button -->
+        <div class="p-3 bg-card-bg border-t border-border-subtle">
+          <div class="space-y-1.5 mb-3 text-xs">
+            <div class="flex justify-between text-neutral-400">
+              <span>Subtotal:</span>
+              <span id="cart-subtotal" class="font-mono text-slate-200">RM 0.00</span>
+            </div>
+            <div class="flex justify-between text-neutral-400">
+              <span>Tax (6%):</span>
+              <span id="cart-tax" class="font-mono text-slate-200">RM 0.00</span>
+            </div>
+            <div class="flex justify-between font-bold text-sm text-white pt-1 border-t border-white/5">
+              <span>Total:</span>
+              <span id="cart-total" class="font-mono text-emerald-400 text-base">RM 0.00</span>
+            </div>
+          </div>
+
+          <button onclick="submitStaffOrder()" id="btn-submit-order" class="w-full bg-accent hover:bg-accent-hover text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 transition disabled:opacity-50 shadow-lg shadow-accent/20">
+            <iconify-icon icon="solar:check-circle-bold" class="text-lg"></iconify-icon>
+            <span>Punch Order to Kitchen &amp; POS</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════
+         TAB 4: MY ACTIVE ORDERS (RESTRICTED ROLE VISIBILITY)
+         ════════════════════════════════════════════════════════════ -->
+    <section id="panel-orders" class="tab-panel hidden h-full overflow-y-auto custom-scroll p-4 sm:p-6">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h1 class="font-forum text-2xl text-white uppercase tracking-wider flex items-center gap-2">
+              <iconify-icon icon="solar:clipboard-list-bold" class="text-accent"></iconify-icon>
+              {{ 'My Orders' if staff_role=='manager' else 'My Assigned Orders' }}
+            </h1>
+            <p class="text-xs text-neutral-400 mt-0.5">
+              {% if staff_role == 'manager' %}
+                Orders created by or assigned to {{ staff_name }}. (Manager role boundary enforced)
+              {% else %}
+                Orders assigned to {{ staff_name }}.
+              {% endif %}
+            </p>
+          </div>
+          <button onclick="fetchStaffOrders(true)" class="bg-white/5 hover:bg-white/10 border border-white/10 text-xs px-3 py-1.5 rounded-lg text-neutral-300 flex items-center gap-1.5 transition">
+            <iconify-icon icon="solar:refresh-linear"></iconify-icon> Refresh
+          </button>
+        </div>
+
+        <div id="orders-container" class="grid gap-3 sm:gap-4">
+          <div class="text-center py-16 text-neutral-500 text-sm">Loading orders...</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-notif" class="fixed bottom-4 right-4 bg-[#1E212B] border border-accent/60 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 z-50 transform translate-y-20 opacity-0 transition duration-300 pointer-events-none">
+    <iconify-icon icon="solar:info-circle-bold" class="text-accent text-2xl flex-shrink-0"></iconify-icon>
+    <div class="text-xs" id="toast-text">Notification message</div>
+  </div>
+
+  <script>
+    const STAFF_NAME = {{ staff_name|tojson }};
+    const STAFF_ROLE = {{ staff_role|tojson }};
+    let activeTab = 'calls';
+    let cart = [];
+    let seenCallIds = {};
+    let firstLoadCalls = true;
+
+    // Live clock
+    function updateClock(){
+      const el = document.getElementById('live-clock');
+      if(el) el.textContent = new Date().toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    // Tab switcher
+    function switchTab(name){
+      activeTab = name;
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('bg-accent', 'text-white', 'shadow-sm');
+        b.classList.add('text-neutral-400');
+      });
+
+      const activePanel = document.getElementById('panel-' + name);
+      const activeBtn = document.getElementById('tab-btn-' + name);
+      if(activePanel) activePanel.classList.remove('hidden');
+      if(activeBtn){
+        activeBtn.classList.add('bg-accent', 'text-white', 'shadow-sm');
+        activeBtn.classList.remove('text-neutral-400');
+      }
+
+      if(name === 'calls') fetchStaffCalls();
+      if(name === 'orders') fetchStaffOrders();
+    }
+
+    // Audio chime for table calls
+    function playCallChime(){
+      try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [880, 1174, 1320].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          const startTime = ctx.currentTime + idx * 0.15;
+          gain.gain.setValueAtTime(0.001, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.3, startTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
+          osc.start(startTime);
+          osc.stop(startTime + 0.38);
+        });
+      }catch(e){}
+    }
+
+    // Toast helper
+    function showToast(msg){
+      const el = document.getElementById('toast-notif');
+      document.getElementById('toast-text').textContent = msg;
+      el.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => el.classList.add('translate-y-20', 'opacity-0'), 3500);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // SERVICE CALLS
+    // ════════════════════════════════════════════════════════════
+    const callIcons = { water:'💧', cutlery:'🍽️', tissue:'🧻', assistance:'👨‍🍳', bill:'💳', other:'🔔' };
+
+    async function fetchStaffCalls(manual=false){
+      try{
+        const res = await fetch('/api/staff/table-requests');
+        if(!res.ok) return;
+        const calls = await res.json();
+
+        const badge = document.getElementById('badge-calls-count');
+        const pendingCount = calls.filter(c => c.status === 'pending').length;
+        if(badge){
+          badge.textContent = pendingCount;
+          badge.classList.toggle('hidden', pendingCount === 0);
+        }
+
+        // Play chime on new pending call
+        let hasNew = false;
+        calls.forEach(c => {
+          if(c.status === 'pending' && !seenCallIds[c.id]){
+            hasNew = true;
+          }
+          seenCallIds[c.id] = true;
+        });
+
+        if(hasNew && !firstLoadCalls){
+          playCallChime();
+          showToast('🔔 New Customer Table Call received!');
+        }
+        firstLoadCalls = false;
+
+        const container = document.getElementById('calls-container');
+        if(!container) return;
+
+        if(!calls.length){
+          container.innerHTML = `
+            <div class="text-center py-16 text-neutral-500 text-sm">
+              <iconify-icon icon="solar:bell-linear" class="text-5xl text-neutral-600 block mx-auto mb-2"></iconify-icon>
+              No active table requests right now.
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = calls.map(c => `
+          <div class="bg-card-bg border ${c.status==='pending' ? 'border-red-500/60 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-border-subtle'} rounded-xl p-4 transition">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2.5">
+                <span class="bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold text-xs px-2.5 py-1 rounded-lg">
+                  TABLE ${c.table_number}
+                </span>
+                <span class="font-bold text-sm text-white flex items-center gap-1.5">
+                  <span>${callIcons[c.request_type]||'🔔'}</span>
+                  <span class="capitalize">${c.request_type}</span>
+                </span>
+                ${c.assigned_waiter_name ? `<span class="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded border border-accent/20">👤 ${c.assigned_waiter_name}</span>` : ''}
+              </div>
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${c.status==='pending' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 badge-pulse' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}">
+                ${c.status === 'pending' ? '⏳ Pending' : '🏃 Staff Attending'}
+              </span>
+            </div>
+
+            ${c.message ? `<div class="text-xs text-neutral-300 italic bg-white/5 border-l-2 border-accent px-3 py-2 rounded mb-3">"${c.message}"</div>` : ''}
+
+            <div class="flex items-center justify-between text-xs pt-2 border-t border-white/5">
+              <span class="text-neutral-500 text-[11px]">Received: ${c.time_str || c.created_at}</span>
+              <div class="flex gap-2">
+                ${c.status === 'pending' ? `
+                  <button onclick="updateCallStatus(${c.id}, 'acknowledged')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                    <iconify-icon icon="solar:check-circle-linear"></iconify-icon> Attending
+                  </button>
+                ` : ''}
+                <button onclick="updateCallStatus(${c.id}, 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                  <iconify-icon icon="solar:check-read-linear"></iconify-icon> Complete
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+      }catch(e){
+        console.error('Error fetching calls:', e);
+      }
+    }
+
+    async function updateCallStatus(id, newStatus){
+      try{
+        const res = await fetch(`/api/pos/table-request/${id}/status`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({status: newStatus})
+        });
+        if(res.ok){
+          showToast(`Call marked as ${newStatus}`);
+          fetchStaffCalls();
+        }
+      }catch(e){
+        alert('Error updating call: ' + e.message);
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // MY ORDERS (RESTRICTED ROLE VISIBILITY)
+    // ════════════════════════════════════════════════════════════
+    async function fetchStaffOrders(manual=false){
+      try{
+        const res = await fetch('/api/staff/orders');
+        if(!res.ok) return;
+        const orders = await res.json();
+
+        const badge = document.getElementById('badge-orders-count');
+        if(badge) badge.textContent = orders.length;
+
+        const container = document.getElementById('orders-container');
+        if(!container) return;
+
+        if(!orders.length){
+          container.innerHTML = `
+            <div class="text-center py-16 text-neutral-500 text-sm">
+              <iconify-icon icon="solar:clipboard-list-linear" class="text-5xl text-neutral-600 block mx-auto mb-2"></iconify-icon>
+              No orders found for ${STAFF_NAME}.
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = orders.map(o => {
+          const isPaid = o.payment_status === 'paid';
+          const isPayAtCounter = o.payment_status === 'pay_at_counter';
+          return `
+            <div class="bg-card-bg border border-border-subtle rounded-xl p-4 transition">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-white text-sm">#${o.order_no}</span>
+                  <span class="bg-accent/10 border border-accent/30 text-accent font-extrabold text-xs px-2 py-0.5 rounded">
+                    ${o.table_number ? 'Table ' + o.table_number : o.order_type}
+                  </span>
+                  <span class="text-[10px] text-neutral-400">👤 ${o.waiter_name || o.created_by || 'Staff'}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${isPaid ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : isPayAtCounter ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}">
+                    ${isPaid ? '✓ Paid' : isPayAtCounter ? '⚠️ Pay at Counter' : 'Unpaid'}
+                  </span>
+                  <span class="font-bold text-sm text-emerald-400 font-mono">RM ${o.total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div class="text-xs text-neutral-300 py-1.5 line-clamp-2">
+                ${(o.items||[]).map(i => `${i.qty}× <b>${i.name}</b>`).join(', ')}
+              </div>
+
+              <div class="flex items-center justify-between text-xs text-neutral-500 pt-2 border-t border-white/5 mt-2">
+                <span>Created: ${o.created_at}</span>
+                <span class="text-[11px] uppercase font-bold px-2 py-0.5 rounded bg-white/5 text-neutral-300">${o.status}</span>
+              </div>
+
+              <div class="flex items-center gap-2 pt-2 mt-2 border-t border-white/5 flex-wrap">
+                <button onclick="chaseOrder(${o.id}, '${o.order_no}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold ${o.is_chased ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-neutral-700 hover:bg-neutral-600 text-white'} flex items-center gap-1 transition">
+                  <iconify-icon icon="solar:bolt-linear" class="text-amber-400"></iconify-icon>
+                  <span>${o.is_chased ? '⚡ Chased' : '⚡ Chase Kitchen'}</span>
+                </button>
+                <button onclick="changeTable(${o.id}, ${o.table_number||0})" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-neutral-700 hover:bg-neutral-600 text-white flex items-center gap-1 transition">
+                  <iconify-icon icon="solar:chair-linear" class="text-blue-400"></iconify-icon>
+                  <span>Change Table</span>
+                </button>
+                <button onclick="window.open('/bill/'+${o.id}+'?format=thermal','_blank')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-neutral-700 hover:bg-neutral-600 text-white flex items-center gap-1 transition ml-auto">
+                  <iconify-icon icon="solar:printer-2-linear"></iconify-icon>
+                  <span>Receipt</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      }catch(e){
+        console.error('Error fetching orders:', e);
+      }
+    }
+
+    async function chaseOrder(orderId, orderNo){
+      try{
+        const res = await fetch(`/api/order/${orderId}/chase`, {method:'POST'});
+        const d = await res.json();
+        if(d.ok){
+          showToast(`⚡ Chased order #${orderNo} to Kitchen!`);
+          fetchStaffOrders();
+        } else {
+          alert(d.error || 'Failed to chase order');
+        }
+      }catch(e){ alert('Error: '+e.message); }
+    }
+
+    async function changeTable(orderId, currentTable){
+      const newTable = prompt(`Move Order to which table? (Current: Table ${currentTable||'None'}):`);
+      if(!newTable) return;
+      try{
+        const res = await fetch(`/api/order/${orderId}/change-table`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({new_table_number: parseInt(newTable)})
+        });
+        const d = await res.json();
+        if(d.ok){
+          showToast(`✓ Order moved to Table ${d.new_table}! (Assigned: ${d.waiter_name})`);
+          fetchStaffOrders();
+        } else {
+          alert(d.error || 'Failed to move table');
+        }
+      }catch(e){ alert('Error: '+e.message); }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TAKE ORDER & CART PUNCHING
+    // ════════════════════════════════════════════════════════════
+    function startOrderForTable(tableNum){
+      const sel = document.getElementById('punch-table-select');
+      if(sel){
+        sel.value = tableNum;
+      }
+      switchTab('take-order');
+    }
+
+    function selectCategory(cat){
+      document.querySelectorAll('.cat-pill').forEach(p => {
+        p.classList.remove('bg-accent', 'text-white');
+        p.classList.add('bg-card-bg', 'text-neutral-300');
+      });
+      event.target.classList.add('bg-accent', 'text-white');
+      event.target.classList.remove('bg-card-bg', 'text-neutral-300');
+
+      const cards = document.querySelectorAll('.dish-card');
+      cards.forEach(c => {
+        if(cat === 'all' || c.dataset.category === cat){
+          c.classList.remove('hidden');
+        } else {
+          c.classList.add('hidden');
+        }
+      });
+    }
+
+    function filterMenuItems(){
+      const q = (document.getElementById('menu-search-input').value||'').trim().toLowerCase();
+      document.querySelectorAll('.dish-card').forEach(c => {
+        if(!q || c.dataset.name.includes(q)){
+          c.classList.remove('hidden');
+        } else {
+          c.classList.add('hidden');
+        }
+      });
+    }
+
+    function addToCart(id, name, price){
+      const existing = cart.find(c => c.id === id);
+      if(existing){
+        existing.qty += 1;
+      } else {
+        cart.push({id, name, price, qty: 1, size: 'full', addons: []});
+      }
+      renderCart();
+      playBeep();
+    }
+
+    function playBeep(){
+      try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 650;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.09);
+      }catch(e){}
+    }
+
+    function updateCartQty(idx, change){
+      cart[idx].qty += change;
+      if(cart[idx].qty <= 0){
+        cart.splice(idx, 1);
+      }
+      renderCart();
+    }
+
+    function clearCart(){
+      cart = [];
+      renderCart();
+    }
+
+    function renderCart(){
+      const container = document.getElementById('cart-list');
+      const countEl = document.getElementById('cart-items-count');
+      const subtotalEl = document.getElementById('cart-subtotal');
+      const taxEl = document.getElementById('cart-tax');
+      const totalEl = document.getElementById('cart-total');
+
+      const totalItems = cart.reduce((sum, i) => sum + i.qty, 0);
+      countEl.textContent = totalItems;
+
+      if(!cart.length){
+        container.innerHTML = `
+          <div class="text-center py-10 text-neutral-500 text-xs">
+            Cart is empty.<br>Tap any dish on the left to add.
+          </div>`;
+        subtotalEl.textContent = 'RM 0.00';
+        taxEl.textContent = 'RM 0.00';
+        totalEl.textContent = 'RM 0.00';
+        return;
+      }
+
+      let subtotal = 0;
+      container.innerHTML = cart.map((item, idx) => {
+        const lineTotal = item.price * item.qty;
+        subtotal += lineTotal;
+        return `
+          <div class="bg-card-bg border border-border-subtle rounded-lg p-2.5 flex items-center justify-between text-xs">
+            <div class="flex-1 pr-2">
+              <div class="font-bold text-white line-clamp-1">${item.name}</div>
+              <div class="text-[11px] text-emerald-400 font-mono">RM ${item.price.toFixed(2)}</div>
+            </div>
+            <div class="flex items-center gap-1.5 bg-white/5 rounded-lg px-1.5 py-0.5 border border-white/10">
+              <button onclick="updateCartQty(${idx}, -1)" class="w-5 h-5 rounded text-neutral-400 hover:text-white font-bold">-</button>
+              <span class="w-5 text-center font-bold text-white">${item.qty}</span>
+              <button onclick="updateCartQty(${idx}, 1)" class="w-5 h-5 rounded text-neutral-400 hover:text-white font-bold">+</button>
+            </div>
+            <div class="w-14 text-right font-mono font-bold text-white text-xs pl-2">
+              RM ${lineTotal.toFixed(2)}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const tax = subtotal * 0.06;
+      const total = subtotal + tax;
+      subtotalEl.textContent = 'RM ' + subtotal.toFixed(2);
+      taxEl.textContent = 'RM ' + tax.toFixed(2);
+      totalEl.textContent = 'RM ' + total.toFixed(2);
+    }
+
+    async function submitStaffOrder(){
+      if(!cart.length){
+        alert('Cart is empty. Please add items to punch an order.');
+        return;
+      }
+
+      const tableNum = document.getElementById('punch-table-select').value;
+      if(!tableNum){
+        alert('Please select a table.');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-order');
+      btn.disabled = true;
+      btn.innerHTML = '<iconify-icon icon="solar:refresh-linear" class="animate-spin text-lg"></iconify-icon> Punching...';
+
+      try{
+        const payload = {
+          table_number: parseInt(tableNum),
+          cart: cart.map(c => ({
+            id: c.id,
+            size: c.size || 'full',
+            qty: c.qty,
+            addons: c.addons || [],
+            notes: ''
+          })),
+          payment_method: 'counter'
+        };
+
+        const res = await fetch('/api/staff/order/create', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if(data.error){
+          alert('Error: ' + data.error);
+          btn.disabled = false;
+          btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" class="text-lg"></iconify-icon><span>Punch Order to Kitchen &amp; POS</span>';
+          return;
+        }
+
+        clearCart();
+        showToast(`✓ Order #${data.order.order_no} punched for Table ${tableNum}!`);
+        btn.disabled = false;
+        btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" class="text-lg"></iconify-icon><span>Punch Order to Kitchen &amp; POS</span>';
+        switchTab('orders');
+
+      }catch(e){
+        alert('Network error submitting order: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" class="text-lg"></iconify-icon><span>Punch Order to Kitchen &amp; POS</span>';
+      }
+    }
+
+    // Auto poll every 3.5 seconds
+    setInterval(() => {
+      fetchStaffCalls();
+      if(activeTab === 'orders') fetchStaffOrders();
+    }, 3500);
+
+    // Initial load
+    fetchStaffCalls();
+  </script>
+</body>
+</html>
+

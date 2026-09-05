@@ -87,6 +87,7 @@ const COLS = [
 
 let _kFirstLoad = true;
 let _kCache = {};
+let _kChased = {};
 let _failCount = 0;
 
 function elapsed(isoStr){
@@ -112,14 +113,29 @@ async function load(){
         showKitchenNotif(
           '🔔 New Order!',
           'Order #'+o.order_no.slice(-4)+' — '+o.items.map(i=>i.qty+'× '+i.name).join(', '),
-          o.source==='online'?'🌐 Online Order':o.source==='qr'?'📱 QR Order':'🖥 POS Order',
+          o.source==='online'?'🌐 Online Order':['customer_qr','qr'].includes(o.source)?'📱 Table '+(o.table_number||'')+' QR Order':'🖥 POS Order',
           'warning'
         );
       } else if(prev!==o.status){
         ringBell(1,'status');
       }
+
+      // Check for Order Chasing (Rush notification)
+      if(o.is_chased && !_kChased[o.id]){
+        bellKitchen();
+        document.getElementById('kds-root').classList.add('bell-flash');
+        setTimeout(()=>document.getElementById('kds-root')?.classList.remove('bell-flash'),800);
+        showKitchenNotif(
+          '⚡ ORDER CHASED / RUSH!',
+          'Table '+(o.table_number||'Walk-In')+' is following up on Order #'+o.order_no.slice(-4)+'!',
+          'Urgent Food Follow-Up',
+          'error'
+        );
+        _kChased[o.id] = true;
+      }
     }
     _kCache[o.id] = o.status;
+    if(o.is_chased) _kChased[o.id] = true;
   });
   _kFirstLoad = false;
 
@@ -141,11 +157,12 @@ async function load(){
           : items.map(o=>{
               const t = elapsed(o.created_at_iso||o.created_at);
               return `
-              <div class="ticket ${t.tcls} rounded-xl p-3 lazy-fade visible">
+              <div class="ticket ${t.tcls} ${o.is_chased ? 'border-2 !border-amber-500 bg-amber-950/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : ''} rounded-xl p-3 lazy-fade visible">
                 <div class="flex items-center justify-between mb-2">
                   <div class="flex items-center gap-2">
                     <span class="text-white font-bold text-sm">${o.order_no.slice(-4)}</span>
-                    ${o.source==='qr'?'<span class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">📱 QR</span>':''}
+                    ${o.is_chased ? '<span class="text-[10px] bg-amber-500 text-black font-extrabold px-2 py-0.5 rounded animate-pulse">⚡ RUSH / CHASED</span>' : ''}
+                    ${['customer_qr','qr'].includes(o.source)?'<span class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">📱 QR</span>':''}
                     ${o.source==='online'?'<span class="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">🌐 Online</span>':''}
                     ${o.source==='grab'?'<span class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">Grab</span>':''}
                     ${o.payment_status==='paid'?'<span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">✓ Paid</span>':o.payment_status==='pending_verification'?'<span class="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full">⏳ Verify</span>':''}
