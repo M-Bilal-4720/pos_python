@@ -1347,9 +1347,10 @@ async function renderPanel(type){
               <button onclick="changeTablePos(${o.id}, ${o.table_number||0})" class="ob" style="background:#3b82f6;color:#fff;border:none;justify-content:center;display:flex;align-items:center;gap:4px;"><iconify-icon icon="solar:chair-linear"></iconify-icon> Move Table</button>
               <button onclick="deleteOrder(${o.id})" class="ob ob-delete"><iconify-icon icon="solar:trash-bin-2-linear"></iconify-icon> Delete</button>
               ${o.payment_status==='pending_verification'?`<button onclick="verifyTng(${o.id})" style="grid-column:span 2;background:#00b4d8;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:5px;"><iconify-icon icon='solar:wallet-check-linear'></iconify-icon> ✓ Verify TnG Payment</button>`:''}
-              <button onclick="window.open('/bill/'+o.id+'?format=thermal&autoprint=1','_blank')" class="ob ob-invoice" style="justify-content:center;"><iconify-icon icon="solar:printer-2-linear"></iconify-icon> Receipt</button>
-              <button onclick="window.open('/bill/'+o.id+'?format=a4','_blank')" class="ob" style="background:#6b7280;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;justify-content:center;display:flex;align-items:center;gap:4px;"><iconify-icon icon="solar:document-linear"></iconify-icon> A4</button>
-              <a href="/token/${o.id}" target="_blank" class="ob" style="background:#059669;color:#fff;text-decoration:none;justify-content:center;display:flex;align-items:center;gap:5px;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;"><iconify-icon icon="solar:ticket-linear"></iconify-icon> Token</a>
+
+              <button onclick="showBillOverlay('/bill/${o.id}?format=a4')" class="ob ob-invoice" style="justify-content:center;"><iconify-icon icon="solar:bill-list-linear"></iconify-icon> Invoice</button>
+              <a href="/token/${o.id}" target="_blank" class="ob" style="background:#059669;color:#fff;text-decoration:none;justify-content:center;display:flex;align-items:center;gap:5px;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;"><iconify-icon icon="solar:ticket-linear"></iconify-icon> Token Slip</a>
+
             </div>
           </div>`;
         }).join('')}
@@ -1715,8 +1716,9 @@ async function submitMasterKey(){
   const res = await fetch('/api/pos/verify-master-key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});
   const d   = await res.json();
   if(d.ok){
+    const cb = _masterKeyCallback;
     closeMasterKey();
-    if(_masterKeyCallback) _masterKeyCallback();
+    if(cb) cb();
   } else {
     document.getElementById('mk-error').style.display='block';
     document.getElementById('mk-pin').value='';

@@ -1020,6 +1020,25 @@ def staff_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def staff_required_open(f):
+    """Same login/session checks as staff_required, but skips the IP
+    whitelist gate. For pages needed constantly during live service
+    (invoice/token slip) — these shouldn't go dark just because a staff
+    device's IP fell off the whitelist; /admin and the main /pos screen
+    stay whitelist-gated via staff_required."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("staff_id"):
+            return redirect(url_for("staff_login", next=request.path))
+        user = db.session.get(StaffUser, session["staff_id"])
+        if not user or not user.active:
+            session.clear()
+            return redirect(url_for("staff_login"))
+        if user.role == "kitchen" and request.path not in ["/kitchen", "/logout"]:
+            return redirect("/kitchen")
+        return f(*args, **kwargs)
+    return decorated
+
 # ════════════════════════════════════════════
 #  AUTH ROUTES
 # ════════════════════════════════════════════
@@ -3031,13 +3050,13 @@ def customer_display():
     return render_template("customer_display.html", restaurant=get_restaurant_info(), settings=get_settings())
 
 @app.route("/token/<int:oid>")
-@staff_required
+@staff_required_open
 def token_slip(oid):
     order = db.get_or_404(Order, oid)
     return render_template("token_slip.html", order=order, restaurant=get_restaurant_info())
 
 @app.route("/bill/<int:oid>")
-@staff_required
+@staff_required_open
 def bill(oid):
     order = db.get_or_404(Order, oid)
     fmt   = request.args.get("format","thermal")
