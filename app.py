@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask import (Flask, render_template, request, jsonify,
                    send_file, redirect, url_for, session, make_response, abort)
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import or_, func
 from flask_compress import Compress
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -44,10 +45,11 @@ if not _admin_pin:
 
 _database_url = os.environ.get("DATABASE_URL")
 if not _database_url:
-    raise RuntimeError(
-        "DATABASE_URL env var not set. Set it to the Postgres connection "
-        "string, e.g. postgresql://user:pass@localhost:5432/dbname"
-    )
+    _inst_dir = os.path.join(BASE_DIR, "instance")
+    os.makedirs(_inst_dir, exist_ok=True)
+    _default_sqlite = f"sqlite:///{os.path.join(_inst_dir, 'maibistro.db')}"
+    print(f"[INFO] DATABASE_URL env var not set — falling back to SQLite at {_default_sqlite}")
+    _database_url = _default_sqlite
 
 app.config.update(
     SQLALCHEMY_DATABASE_URI = _database_url,
@@ -176,11 +178,58 @@ class MenuItem(db.Model):
         return imgs if imgs else ([self.image_url] if self.image_url else [])
 
 class RestaurantTable(db.Model):
-    id     = db.Column(db.Integer, primary_key=True)
-    number = db.Column(db.Integer, unique=True, nullable=False)
-    label  = db.Column(db.String(40))
-    status = db.Column(db.String(20), default="free")
-    token  = db.Column(db.String(32), default="")
+    id                   = db.Column(db.Integer, primary_key=True)
+    number               = db.Column(db.Integer, unique=True, nullable=False)
+    label                = db.Column(db.String(40))
+    status               = db.Column(db.String(20), default="free")
+    token                = db.Column(db.String(32), default="")
+    qr_enabled           = db.Column(db.Boolean, default=True)
+    assigned_waiter_id   = db.Column(db.Integer, nullable=True)
+    assigned_waiter_name = db.Column(db.String(80), default="")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "number": self.number,
+            "label": self.label or f"Table {self.number}",
+            "status": self.status,
+            "token": self.token or "",
+            "qr_enabled": self.qr_enabled if self.qr_enabled is not None else True,
+            "assigned_waiter_id": self.assigned_waiter_id,
+            "assigned_waiter_name": self.assigned_waiter_name or "",
+        }
+
+class TableRequest(db.Model):
+    """Customer Call Staff / Bell requests from table QR sessions."""
+    id                   = db.Column(db.Integer, primary_key=True)
+    table_number         = db.Column(db.Integer, nullable=False)
+    table_id             = db.Column(db.Integer, db.ForeignKey("restaurant_table.id"), nullable=True)
+    request_type         = db.Column(db.String(40), nullable=False)  # water, cutlery, tissue, assistance, bill, other
+    message              = db.Column(db.String(255), default="")
+    status               = db.Column(db.String(20), default="pending")  # pending, acknowledged, completed, cancelled
+    assigned_waiter_id   = db.Column(db.Integer, nullable=True)
+    assigned_waiter_name = db.Column(db.String(80), default="")
+    created_at           = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    resolved_at          = db.Column(db.DateTime, nullable=True)
+    resolved_by          = db.Column(db.String(60), default="")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "table_number": self.table_number,
+            "table_id": self.table_id,
+            "request_type": self.request_type,
+            "message": self.message,
+            "status": self.status,
+            "assigned_waiter_id": self.assigned_waiter_id,
+            "assigned_waiter_name": self.assigned_waiter_name or "",
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at else "",
+            "created_at_iso": self.created_at.isoformat() if self.created_at else "",
+            "time_str": self.created_at.strftime("%I:%M %p") if self.created_at else "",
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else "",
+            "resolved_by": self.resolved_by or "",
+        }
+
 
 class AddOn(db.Model):
     id        = db.Column(db.Integer, primary_key=True)
@@ -190,34 +239,39 @@ class AddOn(db.Model):
     available = db.Column(db.Boolean, default=True)
 
 class Order(db.Model):
-    id                = db.Column(db.Integer, primary_key=True)
-    order_no          = db.Column(db.String(20), unique=True)
-    order_type        = db.Column(db.String(20), default="dine_in")
-    table_number      = db.Column(db.Integer, nullable=True)
-    customer_name     = db.Column(db.String(120), default="")
-    customer_phone    = db.Column(db.String(40), default="")
-    delivery_address  = db.Column(db.String(255), default="")
-    waiter_name       = db.Column(db.String(60), default="")
-    status            = db.Column(db.String(20), default="pending")
-    payment_status    = db.Column(db.String(20), default="unpaid")
-    payment_method    = db.Column(db.String(20), default="")
-    subtotal          = db.Column(db.Float, default=0)
-    tax               = db.Column(db.Float, default=0)
-    service_charge    = db.Column(db.Float, default=0)
-    discount_type     = db.Column(db.String(20), default="none")
-    discount_value    = db.Column(db.Float, default=0)
-    discount_amount   = db.Column(db.Float, default=0)
-    total             = db.Column(db.Float, default=0)
-    customer_paid     = db.Column(db.Float, default=0)
-    change_due        = db.Column(db.Float, default=0)
-    customer_id       = db.Column(db.Integer, nullable=True)
-    source            = db.Column(db.String(20), default="online")
-    platform_order_id = db.Column(db.String(80), default="")
-    token_no          = db.Column(db.String(10), default="")   # T001, T002...
-    takeaway_no       = db.Column(db.Integer, nullable=True)   # 1-10 takeaway queue
-    master_key_used   = db.Column(db.Boolean, default=False)
-    notes             = db.Column(db.String(255), default="")
-    created_at        = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    id                 = db.Column(db.Integer, primary_key=True)
+    order_no           = db.Column(db.String(20), unique=True)
+    order_type         = db.Column(db.String(20), default="dine_in")
+    table_number       = db.Column(db.Integer, nullable=True)
+    customer_name      = db.Column(db.String(120), default="")
+    customer_phone     = db.Column(db.String(40), default="")
+    delivery_address   = db.Column(db.String(255), default="")
+    waiter_name        = db.Column(db.String(60), default="")
+    assigned_waiter_id = db.Column(db.Integer, nullable=True)
+    created_by         = db.Column(db.String(80), default="")
+    status             = db.Column(db.String(20), default="pending")
+    payment_status     = db.Column(db.String(20), default="unpaid")
+    payment_method     = db.Column(db.String(20), default="")
+    payment_ref        = db.Column(db.String(120), default="")
+    subtotal           = db.Column(db.Float, default=0)
+    tax                = db.Column(db.Float, default=0)
+    service_charge     = db.Column(db.Float, default=0)
+    discount_type      = db.Column(db.String(20), default="none")
+    discount_value     = db.Column(db.Float, default=0)
+    discount_amount    = db.Column(db.Float, default=0)
+    total              = db.Column(db.Float, default=0)
+    customer_paid      = db.Column(db.Float, default=0)
+    change_due         = db.Column(db.Float, default=0)
+    customer_id        = db.Column(db.Integer, nullable=True)
+    source             = db.Column(db.String(20), default="online")
+    platform_order_id  = db.Column(db.String(80), default="")
+    token_no           = db.Column(db.String(10), default="")   # T001, T002...
+    takeaway_no        = db.Column(db.Integer, nullable=True)   # 1-10 takeaway queue
+    master_key_used    = db.Column(db.Boolean, default=False)
+    notes              = db.Column(db.String(255), default="")
+    is_chased          = db.Column(db.Boolean, default=False)
+    chased_at          = db.Column(db.DateTime, nullable=True)
+    created_at         = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     items = db.relationship("OrderItem", backref="order", cascade="all, delete-orphan")
 
 class OrderItem(db.Model):
@@ -368,12 +422,15 @@ DEFAULT_SETTINGS = {
     "master_pin":"",
 }
 
-WAITER_SEED = ["Ali","Hassan","Hamza","Rony","Jacky"]
+WAITER_SEED = ["Ahmed", "Bilal", "Ali", "Hassan", "Hamza", "Rony", "Jacky"]
 
 STAFF_SEED = [
     # username, password, role
     ("admin",   "admin123",   "admin"),
     ("manager", "manager123", "manager"),
+    ("ahmed",   "waiter123",  "waiter"),
+    ("bilal",   "waiter123",  "waiter"),
+    ("ali",     "waiter123",  "waiter"),
     ("staff1",  "staff123",   "staff"),
     ("staff2",  "staff123",   "staff"),
 ]
@@ -396,20 +453,46 @@ def seed():
     if SiteSetting.query.count() == 0:
         for k,v in DEFAULT_SETTINGS.items():
             db.session.add(SiteSetting(key=k,value=v))
-    # tables
-    if RestaurantTable.query.count() == 0:
-        for n in range(1,13):
-            db.session.add(RestaurantTable(number=n,label=f"Table {n}"))
     # waiters
-    if Waiter.query.count() == 0:
-        for n in WAITER_SEED:
-            db.session.add(Waiter(name=n,active=True))
+    for n in WAITER_SEED:
+        if not Waiter.query.filter_by(name=n).first():
+            db.session.add(Waiter(name=n, active=True))
+    db.session.flush()
+
     # staff users
-    if StaffUser.query.count() == 0:
-        for uname, pwd, role in STAFF_SEED:
+    for uname, pwd, role in STAFF_SEED:
+        if not StaffUser.query.filter_by(username=uname).first():
             u = StaffUser(username=uname, role=role, active=True)
             u.set_password(pwd)
             db.session.add(u)
+    db.session.flush()
+
+    # tables
+    if RestaurantTable.query.count() == 0:
+        for n in range(1,13):
+            db.session.add(RestaurantTable(number=n,label=f"Table {n}",token=secrets.token_hex(8),qr_enabled=True))
+        db.session.flush()
+
+    # ensure all tables have tokens and default waiter range assignments
+    w_ahmed = Waiter.query.filter_by(name="Ahmed").first()
+    w_bilal = Waiter.query.filter_by(name="Bilal").first()
+    w_ali   = Waiter.query.filter_by(name="Ali").first()
+    for t in RestaurantTable.query.all():
+        if not t.token:
+            t.token = secrets.token_hex(8)
+        if t.qr_enabled is None:
+            t.qr_enabled = True
+        if not t.assigned_waiter_name:
+            if 1 <= t.number <= 5 and w_ahmed:
+                t.assigned_waiter_name = "Ahmed"
+                t.assigned_waiter_id = w_ahmed.id
+            elif 6 <= t.number <= 10 and w_bilal:
+                t.assigned_waiter_name = "Bilal"
+                t.assigned_waiter_id = w_bilal.id
+            elif w_ali:
+                t.assigned_waiter_name = "Ali"
+                t.assigned_waiter_id = w_ali.id
+
     db.session.commit()
 
 def get_settings():
@@ -460,6 +543,9 @@ def serialize_order(o):
         "table_number":o.table_number,"customer_name":o.customer_name,
         "customer_phone":o.customer_phone,"delivery_address":o.delivery_address or "",
         "waiter_name":o.waiter_name or "",
+        "assigned_waiter_id": o.assigned_waiter_id,
+        "created_by": o.created_by or "",
+        "payment_ref": o.payment_ref or "",
         "notes":o.notes or "","status":o.status,"payment_status":o.payment_status,
         "payment_method":o.payment_method,"subtotal":o.subtotal,"tax":o.tax,
         "service_charge":o.service_charge or 0,"discount_type":o.discount_type or "none",
@@ -467,6 +553,8 @@ def serialize_order(o):
         "total":o.total,"customer_paid":o.customer_paid or 0,"change_due":o.change_due or 0,
         "source":o.source,"platform_order_id":o.platform_order_id or "",
         "token_no":o.token_no or "","takeaway_no":o.takeaway_no,
+        "is_chased": bool(getattr(o, "is_chased", False)),
+        "chased_at": o.chased_at.isoformat() if getattr(o, "chased_at", None) else None,
         "created_at":o.created_at.strftime("%Y-%m-%d %H:%M"),
         "created_at_iso":o.created_at.isoformat(),
         "items":[{"id":i.id,"name":i.name,"size":i.size,"qty":i.qty,"unit_price":i.unit_price,
@@ -480,17 +568,19 @@ def free_table(table_number):
         t = RestaurantTable.query.filter_by(number=int(table_number)).first()
         if t: t.status = "free"
 
-def build_order_items(cart, order):
+def build_order_items(cart, order, trusted_prices=False):
     subtotal = 0
     for line in cart:
-        # Open item — custom name + price, no menu_item_id
+        # Open item — custom name + price, allowed only when trusted_prices=True (staff POS)
         if line.get("open_item"):
+            if not trusted_prices:
+                continue  # untrusted client cannot inject open items
             unit_price = float(line.get("price") or 0)
-            qty        = int(line.get("qty",1))
+            qty        = max(1, int(line.get("qty", 1)))
             oi = OrderItem(
-                menu_item_id=None, name=line.get("name","Custom Item"),
+                menu_item_id=None, name=line.get("name", "Custom Item"),
                 size="full", qty=qty, unit_price=unit_price,
-                notes=line.get("notes",""), addons_json="[]"
+                notes=line.get("notes", "")[:255], addons_json="[]"
             )
             subtotal += unit_price * qty
             order.items.append(oi)
@@ -498,15 +588,33 @@ def build_order_items(cart, order):
         # Regular menu item
         item = db.session.get(MenuItem, line.get("id"))
         if not item: continue
-        size       = line.get("size","full")
-        unit_price = float(line.get("price") or (item.price_full if size=="full" else item.price_half))
-        qty        = int(line.get("qty",1))
-        addons     = line.get("addons",[]) or []
-        addon_total= sum(a.get("price",0) for a in addons)
+        size = line.get("size", "full")
+        if size not in ("full", "half"):
+            size = "full"
+        if not trusted_prices:
+            # Strictly determine price from database record
+            unit_price = float(item.price_full if size == "full" or not item.price_half else item.price_half)
+        else:
+            unit_price = float(line.get("price") or (item.price_full if size == "full" else item.price_half))
+        qty = max(1, int(line.get("qty", 1)))
+        raw_addons = line.get("addons", []) or []
+        verified_addons = []
+        addon_total = 0
+        for a in raw_addons:
+            a_name = a.get("name") if isinstance(a, dict) else str(a)
+            if not a_name: continue
+            addon_obj = AddOn.query.filter_by(name=a_name, available=True).first()
+            if addon_obj:
+                price = addon_obj.price if not trusted_prices else float(a.get("price", addon_obj.price))
+                verified_addons.append({"name": addon_obj.name, "price": price})
+                addon_total += price
+            elif trusted_prices and isinstance(a, dict):
+                verified_addons.append({"name": a.get("name", ""), "price": float(a.get("price", 0))})
+                addon_total += float(a.get("price", 0))
         oi = OrderItem(
             menu_item_id=item.id, name=item.name, size=size,
-            qty=qty, unit_price=unit_price, notes=line.get("notes",""),
-            addons_json=json.dumps(addons)
+            qty=qty, unit_price=unit_price, notes=line.get("notes", "")[:255],
+            addons_json=json.dumps(verified_addons)
         )
         subtotal += (unit_price + addon_total) * qty
         order.items.append(oi)
@@ -523,17 +631,33 @@ def add_headers(resp):
     resp.headers["Referrer-Policy"]        = "strict-origin-when-cross-origin"
     resp.headers["X-XSS-Protection"]       = "1; mode=block"
     resp.headers["Permissions-Policy"]     = "geolocation=(), microphone=(), camera=()"
-    # Cache static assets aggressively (Cloudflare will also cache these)
-    if request.path.startswith("/static/"):
-        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    elif request.path.startswith("/admin/qr/"):
-        resp.headers["Cache-Control"] = "public, max-age=86400"
+    # Smart Cache Strategy:
+    # 1. Dynamic table QRs: no-cache so token regenerations/logo updates reflect immediately
+    # 2. Static logos & icons: 1 hour with revalidation
+    # 3. Static CSS/JS: 1 day (or versioned with ?v=)
+    # 4. App dynamic routes: no-store
+    if request.path.startswith("/admin/qr/"):
+        resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+    elif request.path.startswith("/static/"):
+        if any(request.path.endswith(ext) for ext in [".jpg", ".ico", ".png", ".svg", ".webp"]):
+            resp.headers["Cache-Control"] = "public, max-age=3600, must-revalidate"
+        else:
+            resp.headers["Cache-Control"] = "public, max-age=86400"
     else:
         resp.headers["Cache-Control"] = "no-store"
     # Real IP from Cloudflare
     if "CF-Connecting-IP" in request.headers:
         resp.headers["X-Real-IP"] = request.headers["CF-Connecting-IP"]
     return resp
+
+APP_VERSION = "2.2.0"
+
+@app.context_processor
+def inject_site_globals():
+    return {
+        "app_version": APP_VERSION,
+        "restaurant": get_restaurant_info()
+    }
 
 @app.errorhandler(404)
 def not_found(e):
@@ -597,51 +721,114 @@ def restaurant_name():
     return RESTAURANT["name"]
 
 
-def hitpay_verify_webhook(raw_body: bytes, signature: str, salt: str = "") -> bool:
-    """Verify HitPay webhook HMAC-SHA256 signature."""
+def hitpay_verify_webhook(raw_body: bytes, signature: str, salt: str = "", form_data: dict = None) -> bool:
+    """Verify HitPay webhook HMAC-SHA256 signature against raw body or sorted form params."""
     import hmac as _hmac, hashlib
     _, _salt, _ = _hitpay_config()
     use_salt = salt or _salt
-    computed = _hmac.new(use_salt.encode(), raw_body, hashlib.sha256).hexdigest()
-    return _hmac.compare_digest(computed, signature)
+    if not use_salt or not signature:
+        return False
+
+    # 1. Compare against raw body HMAC
+    try:
+        raw_bytes = raw_body if isinstance(raw_body, bytes) else str(raw_body).encode("utf-8")
+        computed = _hmac.new(use_salt.encode("utf-8"), raw_bytes, hashlib.sha256).hexdigest()
+        if _hmac.compare_digest(computed.lower(), signature.lower()):
+            return True
+    except Exception:
+        pass
+
+    # 2. Compare against form data sorted query string (HitPay form-urlencoded callback format)
+    if form_data and isinstance(form_data, dict):
+        try:
+            filtered = {k: v for k, v in form_data.items() if k.lower() != "hmac"}
+            sorted_qs = "&".join(f"{k}={filtered[k]}" for k in sorted(filtered.keys()))
+            computed2 = _hmac.new(use_salt.encode("utf-8"), sorted_qs.encode("utf-8"), hashlib.sha256).hexdigest()
+            if _hmac.compare_digest(computed2.lower(), signature.lower()):
+                return True
+        except Exception:
+            pass
+
+    return False
 
 
 @app.route("/api/hitpay/create", methods=["POST"])
 def api_hitpay_create():
-    """Create HitPay payment request from customer cart."""
+    """Create HitPay payment request from customer cart with table/waiter auto-assignment."""
     data  = request.get_json(silent=True) or {}
     cart  = data.get("cart", [])
     if not cart:
         return jsonify({"error": "Cart is empty"}), 400
 
-    # Create the order in "pending" state first
-    table_number = data.get("table_number") or None
+    table_token  = (data.get("table_token") or session.get("table_token") or "").strip()
+    table_number = data.get("table_number") or session.get("table_number")
+    valid_table  = None
+
+    if table_token:
+        valid_table = RestaurantTable.query.filter_by(token=table_token).first()
+        if not valid_table:
+            return jsonify({"error": "Invalid table QR session. Please rescan table QR."}), 403
+    elif table_number and str(table_number).isdigit():
+        valid_table = RestaurantTable.query.filter_by(number=int(table_number)).first()
+
+    if valid_table:
+        if valid_table.qr_enabled is False:
+            return jsonify({"error": f"QR ordering is currently disabled for Table {valid_table.number}."}), 403
+        t_num = valid_table.number
+        source = "customer_qr"
+        order_type = "dine_in"
+        assigned_waiter_id = valid_table.assigned_waiter_id
+        assigned_waiter_name = valid_table.assigned_waiter_name
+    else:
+        t_num = None
+        source = "online"
+        order_type = data.get("order_type", "dine_in")
+        assigned_waiter_id = None
+        assigned_waiter_name = None
+
+    customer_name = (data.get("customer_name") or "").strip()
+    if not customer_name:
+        customer_name = f"Table {t_num} Guest" if t_num else "Customer"
+
+    # Create order in "pending" state
     order = Order(
         order_no       = next_order_no(),
-        order_type     = data.get("order_type", "dine_in"),
-        table_number   = int(table_number) if table_number else None,
-        customer_name  = data.get("customer_name", ""),
+        token_no       = next_token(),
+        order_type     = order_type,
+        table_number   = t_num,
+        customer_name  = customer_name,
         customer_phone = data.get("customer_phone", ""),
-        delivery_address = data.get("delivery_address","") if data.get("order_type")=="delivery" else "",
+        delivery_address = data.get("delivery_address","") if order_type=="delivery" else "",
         customer_id    = session.get("customer_id"),
         status         = "pending",
         payment_method = "hitpay",
         payment_status = "unpaid",
-        source         = "qr" if table_number else "online",
+        source         = source,
+        created_by     = "customer_qr" if t_num else "customer_online",
+        assigned_waiter_id = assigned_waiter_id,
+        waiter_name    = assigned_waiter_name,
     )
+
     settings = get_settings()
     tax_rate = float(settings.get("tax_rate", "6")) / 100
-    subtotal = build_order_items(cart, order)
+    # Server price verification (never trust client prices)
+    subtotal = build_order_items(cart, order, trusted_prices=False)
+    if not order.items:
+        return jsonify({"error": "No valid items in order"}), 400
+
     order.subtotal = subtotal
     order.tax      = round(subtotal * tax_rate, 2)
     order.total    = round(subtotal + order.tax, 2)
+
+    if valid_table:
+        valid_table.status = "occupied"
+
     db.session.add(order)
     db.session.commit()
 
     # Call HitPay API
     checkout_url, payment_request_id, error = hitpay_create_payment(order)
     if error:
-        # Don't fail the order — save it and return error so customer can try another method
         return jsonify({"error": error, "order_no": order.order_no}), 502
 
     # Save HitPay payment request ID in notes
@@ -653,55 +840,87 @@ def api_hitpay_create():
         "order_id":           order.id,
         "total":              order.total,
         "checkout_url":       checkout_url,
+        "hitpay_url":         checkout_url,
         "payment_request_id": payment_request_id,
+        "waiter_name":        order.waiter_name,
     })
 
 
 @app.route("/payment/hitpay/return/<order_no>")
 def hitpay_return(order_no):
-    """Customer lands here after HitPay checkout. status=paid/failed comes as query param."""
-    order  = Order.query.filter_by(order_no=order_no).first_or_404()
-    status = request.args.get("status", "")
-    # Redirect to live order tracking — webhook will do the actual payment confirmation
+    """Customer lands here after HitPay checkout. Webhook does the authoritative payment confirmation."""
+    order = Order.query.filter_by(order_no=order_no).first_or_404()
     return redirect(url_for("customer_track", order_no=order_no))
 
 
 @app.route("/payment/hitpay/webhook", methods=["POST"])
-def hitpay_webhook():
-    """HitPay webhook — marks order as paid after HMAC verification."""
-    raw_body  = request.get_data()
-    signature = request.headers.get("Hitpay-Signature", "")
+@app.route("/api/hitpay/webhook", methods=["POST"])
+def hitpay_webhook_unified():
+    """Authoritative HitPay webhook handler — marks order as paid after HMAC-SHA256 verification."""
+    raw_body = request.get_data()
     _, salt, _ = _hitpay_config()
     if not salt:
         app.logger.error("HitPay webhook rejected: HITPAY_SALT not configured")
         return "Webhook not configured", 500
-    if not signature or not hitpay_verify_webhook(raw_body, signature, salt):
-        app.logger.warning("HitPay webhook: invalid signature")
+
+    # Read signature from header or payload
+    signature = request.headers.get("Hitpay-Signature") or \
+                request.headers.get("X-Hitpay-Signature") or \
+                request.form.get("hmac") or ""
+    
+    # Try JSON if signature not in headers/form
+    json_data = request.get_json(silent=True) or {}
+    if not signature and isinstance(json_data, dict):
+        signature = json_data.get("hmac", "")
+
+    form_dict = request.form.to_dict() if request.form else {}
+    if not signature or not hitpay_verify_webhook(raw_body, signature, salt, form_dict):
+        app.logger.warning("HitPay webhook: invalid HMAC signature")
         return "Invalid signature", 401
+
+    payload = json_data or form_dict
+    status = payload.get("status", "")
+    if status != "completed":
+        return "OK", 200   # HitPay requires 200 OK for ignored non-completed events
+
+    ref = payload.get("reference_number") or payload.get("order_no") or ""
+    payment_request_id = payload.get("payment_request_id") or payload.get("id") or ""
+    payment_id = payload.get("payment_id") or ""
+    payment_type = payload.get("payment_type") or "hitpay"
     try:
-        payload = json.loads(raw_body)
+        amount_paid = float(payload.get("amount") or 0)
     except Exception:
-        return "Bad JSON", 400
+        amount_paid = 0.0
 
-    if payload.get("status") != "completed":
-        return "OK", 200   # ignore non-completed events
+    order = None
+    if ref:
+        order = Order.query.filter_by(order_no=ref).first()
+    if not order and payment_request_id:
+        order = Order.query.filter(Order.notes.like(f"HitPay:{payment_request_id}%")).first()
 
-    ref = payload.get("reference_number", "")
-    order = Order.query.filter_by(order_no=ref).first()
     if not order:
-        app.logger.warning(f"HitPay webhook: order {ref} not found")
+        app.logger.warning(f"HitPay webhook: order not found for ref='{ref}', req_id='{payment_request_id}'")
         return "Order not found", 404
 
+    # Verify amount matches (allowing minor floating rounding)
+    if amount_paid > 0 and amount_paid < (order.total - 0.05):
+        app.logger.error(f"HitPay webhook: amount mismatch for {order.order_no}. Expected {order.total}, got {amount_paid}")
+        return "Amount mismatch", 400
+
+    # Idempotent processing
     if order.payment_status != "paid":
-        payments = payload.get("payments", [])
-        method   = payments[0].get("payment_type", "hitpay") if payments else "hitpay"
         order.payment_status = "paid"
-        order.payment_method = method
+        order.payment_method = payment_type or "hitpay"
+        order.payment_ref    = payment_id or payment_request_id or ""
         order.status         = "confirmed"
-        order.customer_paid  = order.total
-        order.change_due     = 0
+        order.customer_paid  = amount_paid if amount_paid > 0 else order.total
+        order.change_due     = 0.0
+        if order.table_number:
+            t = RestaurantTable.query.filter_by(number=order.table_number).first()
+            if t:
+                t.status = "occupied"
         db.session.commit()
-        app.logger.info(f"HitPay: order {ref} marked PAID via {method}")
+        app.logger.info(f"HitPay: order {order.order_no} marked PAID via {payment_type} (Ref: {order.payment_ref})")
 
     return "OK", 200
 
@@ -851,6 +1070,8 @@ def staff_login():
             # Role-based redirect
             if user.role == "kitchen":
                 return redirect("/kitchen")
+            elif user.role == "waiter":
+                return redirect("/tablet")
             elif user.role in ("admin", "manager"):
                 return redirect(next_url if next_url.startswith("/") else "/admin")
             else:
@@ -1258,84 +1479,242 @@ def landing():
     return render_template("landing.html", restaurant=get_restaurant_info(),
                            featured=featured, settings=get_settings())
 
+@app.route("/table/<token>")
+def table_qr_entry(token):
+    """Direct landing for table QR scans: /table/<token>"""
+    return redirect(url_for("customer_menu", t=token))
+
 @app.route("/order")
 def customer_menu():
-    # Require customer login
-    if not session.get("customer_id"):
-        return redirect(url_for("customer_login", next="/order"))
     # Support both token-based (secure) and number-based (legacy)
-    token = request.args.get("t","")
-    table = request.args.get("table","")
+    token = request.args.get("t", "").strip() or session.get("table_token", "")
+    table_param = request.args.get("table", "").strip() or str(session.get("table_number", ""))
     
+    valid_table = None
     if token:
-        # Secure token-based table lookup
         valid_table = RestaurantTable.query.filter_by(token=token).first()
-        table = str(valid_table.number) if valid_table else ""
-    elif table:
-        # Legacy - validate table exists
-        valid_table = RestaurantTable.query.filter_by(number=int(table) if table.isdigit() else 0).first()
-        if not valid_table:
-            table = ""
+    if not valid_table and table_param and table_param.isdigit():
+        valid_table = RestaurantTable.query.filter_by(number=int(table_param)).first()
+
+    table = ""
+    table_token = ""
+    qr_enabled = True
+
+    if valid_table:
+        # Table QR session: NO LOGIN or SIGNUP REQUIRED!
+        session["table_token"] = valid_table.token
+        session["table_number"] = valid_table.number
+        session["table_id"] = valid_table.id
+        table = str(valid_table.number)
+        table_token = valid_table.token or ""
+        qr_enabled = valid_table.qr_enabled if valid_table.qr_enabled is not None else True
+    else:
+        # Not a table session — online delivery/takeout requires customer account
+        if not session.get("customer_id"):
+            return redirect(url_for("customer_login", next="/order"))
+
     items   = MenuItem.query.filter_by(available=True).order_by(MenuItem.sort_order).all()
     addons  = AddOn.query.filter_by(available=True).all()
     grouped = {}
     for c in get_category_order():
         grouped[c] = [i for i in items if i.category == c]
-    customer = db.session.get(Customer, session["customer_id"])
+    customer = db.session.get(Customer, session["customer_id"]) if session.get("customer_id") else None
+
+    # Find water item for quick ordering
+    water_item = MenuItem.query.filter(MenuItem.name.ilike("%mineral%")).first()
+    if not water_item:
+        water_item = MenuItem.query.filter(MenuItem.name.ilike("%water%")).first()
+    water_data = {
+        "id": water_item.id,
+        "name": water_item.name,
+        "price": water_item.price_full or water_item.price_half or 2.0,
+        "image_url": water_item.image_url or "",
+    } if water_item else None
+
     return render_template("menu.html", grouped=grouped, restaurant=get_restaurant_info(),
-                           table=table, addons=addons, settings=get_settings(), customer=customer)
+                           table=table, table_token=table_token, qr_enabled=qr_enabled,
+                           addons=addons, settings=get_settings(), customer=customer,
+                           water_item=water_data)
 
 # ════════════════════════════════════════════
-#  CUSTOMER ORDER API
+#  CUSTOMER ORDER & SERVICE CALL APIS
 # ════════════════════════════════════════════
 
 @app.route("/api/checkout", methods=["POST"])
 def api_checkout():
     data   = request.get_json(silent=True) or {}
-    cart   = data.get("cart",[])
+    cart   = data.get("cart", [])
     if not cart:
-        return jsonify({"error":"Cart is empty"}), 400
-    table_number    = data.get("table_number") or None
-    payment_method  = data.get("payment_method","cash")
-    tng_txn_id      = data.get("tng_txn_id","")
+        return jsonify({"error": "Cart is empty"}), 400
+
+    table_token  = (data.get("table_token") or session.get("table_token") or "").strip()
+    table_number = data.get("table_number") or session.get("table_number")
+    valid_table  = None
+
+    if table_token:
+        valid_table = RestaurantTable.query.filter_by(token=table_token).first()
+        if not valid_table:
+            return jsonify({"error": "Invalid or expired table QR session. Please rescan the table QR."}), 403
+    elif table_number and str(table_number).isdigit():
+        valid_table = RestaurantTable.query.filter_by(number=int(table_number)).first()
+
+    if valid_table:
+        if valid_table.qr_enabled is False:
+            return jsonify({"error": f"QR ordering is currently disabled for Table {valid_table.number}. Please call staff for assistance."}), 403
+        table_number = valid_table.number
+        source = "customer_qr"
+        order_type = "dine_in"
+        assigned_waiter_id = valid_table.assigned_waiter_id
+        assigned_waiter_name = valid_table.assigned_waiter_name
+    else:
+        table_number = None
+        source = "online"
+        order_type = data.get("order_type", "dine_in")
+        assigned_waiter_id = None
+        assigned_waiter_name = None
+
+    customer_name = (data.get("customer_name") or "").strip()
+    if not customer_name:
+        customer_name = f"Table {table_number} Guest" if table_number else "Customer"
+
+    payment_method = (data.get("payment_method") or "counter").strip().lower()
+    tng_txn_id     = data.get("tng_txn_id", "")
+
     order = Order(
         order_no=next_order_no(),
-        order_type=data.get("order_type","dine_in"),
-        table_number=int(table_number) if table_number else None,
-        customer_name=data.get("customer_name",""),
-        customer_phone=data.get("customer_phone",""),
-        delivery_address=data.get("delivery_address","") if data.get("order_type")=="delivery" else "",
+        token_no=next_token(),
+        order_type=order_type,
+        table_number=table_number,
+        customer_name=customer_name,
+        customer_phone=data.get("customer_phone", ""),
+        delivery_address=data.get("delivery_address", "") if order_type == "delivery" else "",
         customer_id=session.get("customer_id"),
         status="pending",
         payment_method=payment_method,
-        source="qr" if table_number else "online",
-        # TnG txn id saved in notes for staff to verify
-        notes=f"TnG Ref: {tng_txn_id}" if tng_txn_id else "",
+        source=source,
+        created_by="customer_qr" if table_number else "customer_online",
+        assigned_waiter_id=assigned_waiter_id,
+        waiter_name=assigned_waiter_name,
+        notes=f"TnG Ref: {tng_txn_id}" if tng_txn_id else (data.get("notes", "") or ""),
     )
-    subtotal = build_order_items(cart, order)
+
+    # Calculate prices strictly from database (never trust client prices)
+    subtotal = build_order_items(cart, order, trusted_prices=False)
+    if not order.items:
+        return jsonify({"error": "No valid items in order"}), 400
+
     settings = get_settings()
-    tax_rate = float(settings.get("tax_rate","6")) / 100
+    tax_rate = float(settings.get("tax_rate", "6")) / 100
     order.subtotal = subtotal
     order.tax      = round(subtotal * tax_rate, 2)
     order.total    = round(subtotal + order.tax, 2)
-    # TnG = pending_verification (staff confirm from TnG app), card/fpx = auto paid
-    if payment_method == "tng":
+
+    if payment_method in ("counter", "pay_at_counter") or (payment_method == "cash" and valid_table):
+        order.payment_method = "counter"
+        order.payment_status = "pay_at_counter"
+    elif payment_method == "tng":
         order.payment_status = "pending_verification"
-    elif payment_method in ("card","fpx"):
+    elif payment_method in ("card", "fpx"):
         order.payment_status = "paid"
     else:
         order.payment_status = "unpaid"
-    if table_number:
-        t = RestaurantTable.query.filter_by(number=int(table_number)).first()
-        if t: t.status = "occupied"
+
+    if valid_table:
+        valid_table.status = "occupied"
+
     db.session.add(order)
     db.session.commit()
-    return jsonify({"order_no":order.order_no,"total":order.total,"order_id":order.id})
+    return jsonify({
+        "order_no": order.order_no,
+        "total": order.total,
+        "order_id": order.id,
+        "table_number": order.table_number,
+        "source": order.source,
+        "payment_status": order.payment_status,
+        "waiter_name": order.waiter_name
+    })
+
+@app.route("/api/table/request", methods=["POST"])
+def api_table_request():
+    """Customer Call Staff / Bell submission from table QR session with auto-routing to assigned waiter."""
+    data = request.get_json(silent=True) or {}
+    token = (data.get("table_token") or session.get("table_token") or "").strip()
+    table_num = data.get("table_number") or session.get("table_number")
+    valid_table = None
+
+    if token:
+        valid_table = RestaurantTable.query.filter_by(token=token).first()
+    elif table_num and str(table_num).isdigit():
+        valid_table = RestaurantTable.query.filter_by(number=int(table_num)).first()
+
+    if not valid_table:
+        return jsonify({"error": "Invalid table session. Please rescan table QR code."}), 403
+
+    if valid_table.qr_enabled is False:
+        return jsonify({"error": "Staff bell is currently disabled for this table."}), 403
+
+    req_type = (data.get("request_type") or "assistance").strip().lower()
+    valid_types = {"water", "cutlery", "tissue", "assistance", "bill", "other"}
+    if req_type not in valid_types:
+        req_type = "assistance"
+
+    message = (data.get("message") or "").strip()[:255]
+
+    req_obj = TableRequest(
+        table_number=valid_table.number,
+        table_id=valid_table.id,
+        request_type=req_type,
+        message=message,
+        status="pending",
+        assigned_waiter_id=valid_table.assigned_waiter_id,
+        assigned_waiter_name=valid_table.assigned_waiter_name,
+    )
+    db.session.add(req_obj)
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "message": "Staff has been notified. We will be with you shortly!",
+        "request": req_obj.to_dict()
+    })
+
+@app.route("/api/table/requests/<token>")
+def api_table_get_requests(token):
+    """Fetch active/recent requests for a specific table session."""
+    table = RestaurantTable.query.filter_by(token=token).first()
+    if not table:
+        return jsonify({"error": "Table not found"}), 404
+    since = datetime.datetime.utcnow() - datetime.timedelta(hours=4)
+    requests_list = TableRequest.query.filter(
+        TableRequest.table_number == table.number,
+        TableRequest.created_at >= since
+    ).order_by(TableRequest.created_at.desc()).limit(15).all()
+    return jsonify([r.to_dict() for r in requests_list])
+
+@app.route("/api/menu/water-item")
+def api_menu_water_item():
+    """Retrieve water menu item details for quick ordering."""
+    item = MenuItem.query.filter(MenuItem.name.ilike("%mineral%")).first()
+    if not item:
+        item = MenuItem.query.filter(MenuItem.name.ilike("%water%")).first()
+    if not item:
+        item = MenuItem.query.filter_by(category="Drinks", available=True).first()
+    if item:
+        return jsonify({
+            "ok": True,
+            "id": item.id,
+            "name": item.name,
+            "price": item.price_full or item.price_half or 2.0,
+            "image_url": item.image_url or "",
+            "description": item.description or ""
+        })
+    return jsonify({"ok": False, "error": "No water item found"}), 404
 
 @app.route("/order-status/<order_no>")
 def order_status_page(order_no):
     order = Order.query.filter_by(order_no=order_no).first_or_404()
     return render_template("order_status.html", order=order, restaurant=get_restaurant_info())
+
 
 #  POS PANEL
 # ════════════════════════════════════════════
@@ -1374,7 +1753,257 @@ def api_pos_orders():
     q = Order.query.order_by(Order.created_at.desc())
     if status:
         q = q.filter(Order.status == status)
+
+    role = session.get("staff_role", "")
+    staff_name = session.get("staff_name", "")
+    staff_id = session.get("staff_id")
+
+    # MANAGER ROLE BOUNDARY:
+    # Manager tablet can take orders for any table, view own created/assigned orders,
+    # but must NOT see all restaurant orders. Enforced strictly at the backend API level.
+    if role == "manager":
+        q = q.filter(
+            or_(
+                Order.created_by == staff_name,
+                func.lower(Order.waiter_name) == staff_name.lower(),
+                Order.assigned_waiter_id == staff_id
+            )
+        )
+    elif role == "waiter":
+        q = q.filter(
+            or_(
+                Order.assigned_waiter_id == staff_id,
+                func.lower(Order.waiter_name) == staff_name.lower(),
+                Order.created_by == staff_name
+            )
+        )
+
     return jsonify([serialize_order(o) for o in q.limit(200).all()])
+
+
+@app.route("/api/pos/table-requests")
+def api_pos_table_requests():
+    """Retrieve active table call bell requests for POS."""
+    if not api_staff_check():
+        return jsonify({"error": "Unauthorized"}), 401
+    status_filter = request.args.get("status")
+    q = TableRequest.query
+    if status_filter:
+        q = q.filter_by(status=status_filter)
+    else:
+        q = q.filter(TableRequest.status.in_(["pending", "acknowledged"]))
+    requests_list = q.order_by(TableRequest.created_at.desc()).limit(50).all()
+    return jsonify([r.to_dict() for r in requests_list])
+
+@app.route("/api/pos/table-request/<int:req_id>/status", methods=["POST"])
+def api_pos_update_table_request(req_id):
+    """Staff updates table call request: acknowledged, completed, or cancelled."""
+    if not api_staff_check():
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    new_status = (data.get("status") or "").strip().lower()
+    if new_status not in ("acknowledged", "completed", "cancelled"):
+        return jsonify({"error": "Invalid status"}), 400
+
+    r = db.session.get(TableRequest, req_id)
+    if not r:
+        return jsonify({"error": "Request not found"}), 404
+
+    r.status = new_status
+    if new_status in ("completed", "cancelled"):
+        r.resolved_at = datetime.datetime.utcnow()
+        r.resolved_by = session.get("staff_name", "staff")
+    elif new_status == "acknowledged":
+        r.resolved_by = session.get("staff_name", "staff")
+
+    db.session.commit()
+    return jsonify({"ok": True, "request": r.to_dict()})
+
+# ════════════════════════════════════════════
+#  STAFF TABLET INTERFACE (WAITER & MANAGER)
+# ════════════════════════════════════════════
+
+@app.route("/tablet")
+@app.route("/staff/tablet")
+def staff_tablet():
+    """Responsive touch-friendly tablet view for Waiters and Managers."""
+    if not session.get("staff_id"):
+        return redirect(url_for("staff_login", next="/tablet"))
+    user = db.session.get(StaffUser, session["staff_id"])
+    if not user or not user.active:
+        session.clear()
+        return redirect(url_for("staff_login"))
+
+    tables = RestaurantTable.query.order_by(RestaurantTable.number).all()
+    waiters = Waiter.query.filter_by(active=True).order_by(Waiter.name).all()
+    items = MenuItem.query.filter_by(available=True).order_by(MenuItem.sort_order).all()
+    addons = AddOn.query.filter_by(available=True).all()
+    grouped = {}
+    for c in get_category_order():
+        grouped[c] = [i for i in items if i.category == c]
+
+    # Compute assigned tables for this user if waiter
+    assigned_tables = []
+    if user.role == "waiter":
+        assigned_tables = [
+            t for t in tables
+            if (t.assigned_waiter_id == user.id) or
+               (t.assigned_waiter_name and t.assigned_waiter_name.lower() == user.username.lower())
+        ]
+
+    return render_template(
+        "tablet.html",
+        restaurant=get_restaurant_info(),
+        settings=get_settings(),
+        staff_id=user.id,
+        staff_name=user.username,
+        staff_role=user.role,
+        tables=tables,
+        assigned_tables=assigned_tables,
+        waiters=waiters,
+        grouped=grouped,
+        addons=addons,
+    )
+
+
+@app.route("/api/staff/orders")
+def api_staff_orders():
+    """Retrieve orders for staff tablet, strictly enforcing manager & waiter boundaries."""
+    if not api_staff_check(allow_kitchen=False):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    role = session.get("staff_role", "waiter")
+    staff_name = session.get("staff_name", "")
+    staff_id = session.get("staff_id")
+    status = request.args.get("status")
+
+    q = Order.query.order_by(Order.created_at.desc())
+    if status:
+        q = q.filter(Order.status == status)
+
+    if role == "manager":
+        # MANAGER ROLE BOUNDARY:
+        # Manager tablet can take orders for any table, view own created/assigned orders,
+        # but must NOT see all restaurant orders. Enforced strictly at the backend API level.
+        q = q.filter(
+            or_(
+                Order.created_by == staff_name,
+                func.lower(Order.waiter_name) == staff_name.lower(),
+                Order.assigned_waiter_id == staff_id
+            )
+        )
+    elif role == "waiter":
+        # Waiter only sees orders assigned to them or created by them
+        q = q.filter(
+            or_(
+                Order.assigned_waiter_id == staff_id,
+                func.lower(Order.waiter_name) == staff_name.lower(),
+                Order.created_by == staff_name
+            )
+        )
+    # Admin / Cashier accounts see all orders
+
+    return jsonify([serialize_order(o) for o in q.limit(100).all()])
+
+
+@app.route("/api/staff/table-requests")
+def api_staff_table_requests():
+    """Retrieve table call bell requests filtered for the staff member."""
+    if not api_staff_check(allow_kitchen=False):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    role = session.get("staff_role", "waiter")
+    staff_name = session.get("staff_name", "")
+    staff_id = session.get("staff_id")
+    status_filter = request.args.get("status")
+
+    q = TableRequest.query
+    if status_filter:
+        q = q.filter_by(status=status_filter)
+    else:
+        q = q.filter(TableRequest.status.in_(["pending", "acknowledged"]))
+
+    if role == "waiter":
+        # Waiter only sees calls from their assigned tables
+        q = q.filter(
+            or_(
+                TableRequest.assigned_waiter_id == staff_id,
+                func.lower(TableRequest.assigned_waiter_name) == staff_name.lower()
+            )
+        )
+    # Managers & Admins see all active table calls
+
+    reqs = q.order_by(TableRequest.created_at.desc()).limit(50).all()
+    return jsonify([r.to_dict() for r in reqs])
+
+
+@app.route("/api/staff/order/create", methods=["POST"])
+def api_staff_create_order():
+    """Manual order punch from waiter/manager tablet with role enforcement and server-side pricing."""
+    if not api_staff_check(allow_kitchen=False):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    role = session.get("staff_role", "waiter")
+    staff_name = session.get("staff_name", "staff")
+    staff_id = session.get("staff_id")
+
+    data = request.get_json(silent=True) or {}
+    cart = data.get("cart", [])
+    if not cart:
+        return jsonify({"error": "Cart is empty"}), 400
+
+    table_num = data.get("table_number")
+    if not table_num:
+        return jsonify({"error": "Table number is required"}), 400
+
+    table = RestaurantTable.query.filter_by(number=int(table_num)).first()
+    if not table:
+        return jsonify({"error": f"Table {table_num} does not exist"}), 404
+
+    # Determine waiter assignment:
+    if role == "waiter":
+        waiter_name = staff_name
+        assigned_waiter_id = staff_id
+    else:
+        # Manager can punch for ANY table, retaining table's assigned waiter or attributing to manager
+        waiter_name = data.get("waiter_name") or table.assigned_waiter_name or staff_name
+        assigned_waiter_id = table.assigned_waiter_id or staff_id
+
+    order_source = f"{role}_tablet"
+    order = Order(
+        order_no=next_order_no(),
+        token_no=next_token(),
+        order_type="dine_in",
+        table_number=table.number,
+        customer_name=data.get("customer_name") or f"Table {table.number}",
+        customer_phone=data.get("customer_phone", ""),
+        waiter_name=waiter_name,
+        assigned_waiter_id=assigned_waiter_id,
+        created_by=staff_name,
+        notes=data.get("notes", ""),
+        status="confirmed",
+        payment_method=data.get("payment_method", "counter"),
+        payment_status="pay_at_counter",
+        source=order_source,
+    )
+
+    # Calculate prices strictly from database (never trust client prices)
+    subtotal = build_order_items(cart, order, trusted_prices=False)
+    if not order.items:
+        return jsonify({"error": "No valid items in order"}), 400
+
+    settings = get_settings()
+    tax_rate = float(settings.get("tax_rate", "6")) / 100
+    order.subtotal = subtotal
+    order.tax      = round(subtotal * tax_rate, 2)
+    order.total    = round(subtotal + order.tax, 2)
+
+    table.status = "occupied"
+    db.session.add(order)
+    db.session.commit()
+
+    return jsonify({"ok": True, "order": serialize_order(order)})
+
 
 @app.route("/api/pos/order", methods=["POST"])
 def api_pos_create_order():
@@ -1406,7 +2035,7 @@ def api_pos_create_order():
     )
     settings = get_settings()
     tax_rate = float(settings.get("tax_rate","6")) / 100
-    subtotal = build_order_items(cart, order)
+    subtotal = build_order_items(cart, order, trusted_prices=True)
     order.subtotal = subtotal
     order.tax      = round(subtotal * tax_rate, 2)
     order.total    = round(subtotal + order.tax, 2)
@@ -1448,7 +2077,7 @@ def api_pos_add_items(oid):
     if not cart:
         return jsonify({"error":"Cart is empty"}), 400
 
-    build_order_items(cart, order)
+    build_order_items(cart, order, trusted_prices=True)
     recompute_order_totals(order)
     db.session.commit()
     return jsonify(serialize_order(order))
@@ -1627,10 +2256,109 @@ def api_complete_payment(oid):
 def api_mark_paid(oid):
     if not api_staff_check(): return jsonify({"error":"Unauthorized"}), 401
     order = db.get_or_404(Order, oid)
+    data = request.get_json(silent=True) or {}
     order.payment_status = "paid"
-    order.payment_method = (request.get_json(silent=True) or {}).get("method","cash")
+    order.payment_method = data.get("method", data.get("payment_method", "cash"))
+    if "customer_paid" in data:
+        order.customer_paid = float(data["customer_paid"])
+        order.change_due = round(max(order.customer_paid - (order.total or 0), 0), 2)
+    if order.status == "pending":
+        order.status = "confirmed"
     db.session.commit()
     return jsonify(serialize_order(order))
+
+@app.route("/api/order/<int:oid>/collect-counter-payment", methods=["POST"])
+def api_collect_counter_payment(oid):
+    """POS Counter Payment Collection for QR 'Pay at Counter' / unpaid dine-in orders."""
+    if not api_staff_check(): return jsonify({"error":"Unauthorized"}), 401
+    order = db.get_or_404(Order, oid)
+    data = request.get_json(silent=True) or {}
+    method = (data.get("payment_method") or data.get("method") or "cash").strip().lower()
+    try:
+        customer_paid = float(data.get("customer_paid") or order.total or 0)
+    except Exception:
+        customer_paid = float(order.total or 0)
+
+    order.payment_method = method
+    order.payment_status = "paid"
+    order.customer_paid  = customer_paid
+    order.change_due     = round(max(customer_paid - (order.total or 0), 0), 2)
+    if order.status == "pending":
+        order.status = "confirmed"
+    db.session.commit()
+    return jsonify({"ok": True, "order": serialize_order(order)})
+
+
+@app.route("/api/order/<int:oid>/chase", methods=["POST"])
+def api_order_chase(oid):
+    """Chase / Rush Order: Sends an urgent priority alert to Kitchen & Staff."""
+    order = db.session.get(Order, oid)
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+    
+    order.is_chased = True
+    order.chased_at = datetime.datetime.utcnow()
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "order_id": order.id,
+        "order_no": order.order_no,
+        "table_number": order.table_number,
+        "is_chased": True,
+        "chased_at": order.chased_at.isoformat()
+    })
+
+
+@app.route("/api/order/<int:oid>/change-table", methods=["POST"])
+def api_order_change_table(oid):
+    """Change / Transfer table for an active order, re-routing assigned waiter."""
+    if not api_staff_check():
+        return jsonify({"error": "Unauthorized"}), 401
+    order = db.session.get(Order, oid)
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    try:
+        new_table_num = int(data.get("new_table_number") or data.get("table_number") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid table number"}), 400
+
+    new_table = RestaurantTable.query.filter_by(number=new_table_num).first()
+    if not new_table:
+        return jsonify({"error": f"Table {new_table_num} does not exist"}), 404
+
+    old_table_num = order.table_number
+    order.table_number = new_table.number
+    if new_table.assigned_waiter_name:
+        order.waiter_name = new_table.assigned_waiter_name
+        order.assigned_waiter_id = new_table.assigned_waiter_id
+
+    new_table.status = "occupied"
+
+    # If old table has no other active orders, mark it free
+    if old_table_num and old_table_num != new_table_num:
+        active_orders_old = Order.query.filter(
+            Order.table_number == old_table_num,
+            Order.id != order.id,
+            Order.status.in_(["pending", "confirmed", "preparing"])
+        ).count()
+        if active_orders_old == 0:
+            old_t = RestaurantTable.query.filter_by(number=old_table_num).first()
+            if old_t:
+                old_t.status = "free"
+
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "order_id": order.id,
+        "order_no": order.order_no,
+        "old_table": old_table_num,
+        "new_table": new_table.number,
+        "waiter_name": order.waiter_name,
+        "assigned_waiter_id": order.assigned_waiter_id
+    })
+
 
 @app.route("/api/pos/table/<int:table_number>/active-order")
 def api_table_active_order(table_number):
@@ -1766,6 +2494,124 @@ def api_admin_delete_table(tid):
     db.session.delete(t)
     db.session.commit()
     return jsonify({"ok":True})
+
+@app.route("/api/admin/table/<int:tid>/toggle-qr", methods=["POST"])
+@admin_required
+def api_admin_toggle_table_qr(tid):
+    """Enable or disable QR self-ordering for a table."""
+    t = db.get_or_404(RestaurantTable, tid)
+    current = t.qr_enabled if t.qr_enabled is not None else True
+    t.qr_enabled = not current
+    db.session.commit()
+    return jsonify({"ok": True, "qr_enabled": t.qr_enabled})
+
+@app.route("/api/admin/table/<int:tid>/regenerate-token", methods=["POST"])
+@admin_required
+def api_admin_regenerate_table_token(tid):
+    """Generate a new secure QR token for a table, invalidating old QR codes."""
+    t = db.get_or_404(RestaurantTable, tid)
+    t.token = secrets.token_hex(8)
+    db.session.commit()
+    return jsonify({"ok": True, "token": t.token})
+
+@app.route("/api/admin/table-requests")
+@admin_required
+def api_admin_table_requests():
+    """Retrieve history of table call requests for admin review."""
+    reqs = TableRequest.query.order_by(TableRequest.created_at.desc()).limit(100).all()
+    return jsonify([r.to_dict() for r in reqs])
+
+@app.route("/api/admin/tables/assign-range", methods=["POST"])
+@admin_required
+def api_admin_assign_table_range():
+    """Assign a range of tables to a waiter (e.g. Tables 1-5 to Ahmed, 6-10 to Bilal)."""
+    data = request.get_json(silent=True) or {}
+    waiter_id = data.get("waiter_id")
+    waiter_name = (data.get("waiter_name") or "").strip()
+    try:
+        from_table = int(data.get("from_table", 0))
+        to_table = int(data.get("to_table", 0))
+    except Exception:
+        return jsonify({"error": "Invalid table numbers"}), 400
+
+    if from_table <= 0 or to_table < from_table:
+        return jsonify({"error": "Invalid table range specified"}), 400
+
+    if waiter_id and not waiter_name:
+        w = db.session.get(Waiter, waiter_id)
+        if w: waiter_name = w.name
+    elif waiter_name and not waiter_id:
+        w = Waiter.query.filter_by(name=waiter_name).first()
+        if w: waiter_id = w.id
+
+    tables = RestaurantTable.query.filter(
+        RestaurantTable.number >= from_table,
+        RestaurantTable.number <= to_table
+    ).all()
+    count = 0
+    for t in tables:
+        t.assigned_waiter_id = waiter_id if waiter_id else None
+        t.assigned_waiter_name = waiter_name if waiter_name else None
+        count += 1
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "assigned_count": count,
+        "waiter_id": waiter_id,
+        "waiter_name": waiter_name,
+        "from_table": from_table,
+        "to_table": to_table
+    })
+
+@app.route("/api/admin/table/<int:tid>/assign-waiter", methods=["POST"])
+@admin_required
+def api_admin_assign_single_table_waiter(tid):
+    """Assign or unassign a specific waiter to a table."""
+    t = db.get_or_404(RestaurantTable, tid)
+    data = request.get_json(silent=True) or {}
+    waiter_id = data.get("waiter_id")
+    waiter_name = (data.get("waiter_name") or "").strip()
+    if waiter_id and not waiter_name:
+        w = db.session.get(Waiter, waiter_id)
+        if w: waiter_name = w.name
+    t.assigned_waiter_id = waiter_id if waiter_id else None
+    t.assigned_waiter_name = waiter_name if waiter_name else None
+    db.session.commit()
+    return jsonify({"ok": True, "table": t.to_dict()})
+
+@app.route("/api/tables")
+def api_tables():
+    """List of all restaurant tables with status and assigned waiter."""
+    tables = RestaurantTable.query.order_by(RestaurantTable.number).all()
+    return jsonify([t.to_dict() for t in tables])
+
+@app.route("/api/waiters")
+def api_waiters():
+    """Active waiters list."""
+    waiters = Waiter.query.filter_by(active=True).order_by(Waiter.name).all()
+    return jsonify([{"id": w.id, "name": w.name, "phone": w.phone} for w in waiters])
+
+
+@app.route("/admin/table/<int:table_number>/print")
+@admin_required
+def admin_print_table_qr(table_number):
+    """Printable table tent card for a single table with restaurant branding and QR code."""
+    t = RestaurantTable.query.filter_by(number=table_number).first_or_404()
+    if not t.token:
+        t.token = secrets.token_hex(8)
+        db.session.commit()
+    return render_template("table_qr_print.html", table=t, restaurant=get_restaurant_info(), site_url=SITE_URL)
+
+@app.route("/admin/tables/print-all")
+@admin_required
+def admin_print_all_tables_qr():
+    """Printable sheet containing table tent cards for all tables."""
+    tables = RestaurantTable.query.order_by(RestaurantTable.number).all()
+    for t in tables:
+        if not t.token:
+            t.token = secrets.token_hex(8)
+    db.session.commit()
+    return render_template("tables_all_qr_print.html", tables=tables, restaurant=get_restaurant_info(), site_url=SITE_URL)
 
 # ── Admin API routes ──
 
@@ -2012,7 +2858,7 @@ def table_qr(table_number):
             import secrets
             t.token = secrets.token_hex(8)
             db.session.commit()
-        url = f"{base}/order?t={t.token}"
+        url = f"{base}/table/{t.token}"
     else:
         url = f"{base}/order?table={table_number}"
     
@@ -2024,22 +2870,17 @@ def table_qr(table_number):
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
     
-    # Add logo if exists
-    logo_path = os.path.join(BASE_DIR, "static", "favicon.jpg")
+    # Add ISB logo emblem in center of QR
+    logo_path = os.path.join(BASE_DIR, "static", "isb_qr_emblem.png")
     if not os.path.exists(logo_path):
-        logo_path = os.path.join(BASE_DIR, "static", "favicon.ico")
+        logo_path = os.path.join(BASE_DIR, "static", "favicon.jpg")
     
     if os.path.exists(logo_path):
         try:
             logo = Image.open(logo_path).convert("RGBA")
             qr_w, qr_h = img.size
-            logo_size = qr_w // 4
+            logo_size = int(qr_w * 0.26)
             logo = logo.resize((logo_size, logo_size), Image.LANCZOS)
-            # Circular mask
-            mask = Image.new("L", logo.size, 0)
-            draw = ImageDraw.Draw(mask)
-            draw.ellipse([0, 0, logo_size, logo_size], fill=255)
-            logo.putalpha(mask)
             pos = ((qr_w - logo_size) // 2, (qr_h - logo_size) // 2)
             img.paste(logo, pos, logo)
         except Exception as e:
@@ -2154,59 +2995,16 @@ def api_addons():
 # ════════════════════════════════════════════
 
 def hitpay_api_url(path):
-    base = "https://api.sandbox.hit-pay.com" if app.config["HITPAY_SANDBOX"] else "https://api.hit-pay.com"
+    base = "https://api.sandbox.hit-pay.com" if app.config.get("HITPAY_SANDBOX") else "https://api.hit-pay.com"
     return f"{base}{path}"
 
 def hitpay_headers():
     return {
-        "X-BUSINESS-API-KEY": app.config["HITPAY_API_KEY"],
+        "X-BUSINESS-API-KEY": app.config.get("HITPAY_API_KEY", ""),
         "Content-Type": "application/x-www-form-urlencoded",
         "X-Requested-With": "XMLHttpRequest",
     }
-@app.route("/api/hitpay/webhook", methods=["POST"])
-def api_hitpay_webhook():
-    """
-    HitPay calls this URL after payment completes.
-    Register this URL in HitPay Dashboard → Developers → Webhook Endpoints.
-    """
-    raw_body = request.get_data(as_text=True)
-    received_hmac = request.form.get("hmac", "")
 
-    # Verify HMAC signature (fail closed — reject if not configured or invalid)
-    _, salt, _ = _hitpay_config()
-    if not salt:
-        app.logger.error("HitPay webhook rejected: HITPAY_SALT not configured")
-        return "Webhook not configured", 500
-    if not received_hmac or not hitpay_verify_webhook(raw_body, received_hmac, salt):
-        return "Invalid signature", 400
-
-    payment_request_id = request.form.get("payment_request_id", "")
-    reference_number   = request.form.get("reference_number", "")   # = our order_no
-    status             = request.form.get("status", "")
-    payment_id         = request.form.get("payment_id", "")
-    payment_type       = request.form.get("payment_type", "")
-    amount             = request.form.get("amount", "0")
-
-    # Find our order
-    order = Order.query.filter_by(order_no=reference_number).first()
-    if not order:
-        # Try by hitpay notes
-        order = Order.query.filter(Order.notes.like(f"hitpay:{payment_request_id}%")).first()
-    if not order:
-        return "Order not found", 404
-
-    if status == "completed":
-        order.payment_status = "paid"
-        order.payment_method = payment_type or order.payment_method
-        order.status         = "confirmed"
-        order.customer_paid  = float(amount)
-        # Mark table occupied if applicable
-        if order.table_number:
-            t = RestaurantTable.query.filter_by(number=order.table_number).first()
-            if t: t.status = "occupied"
-        db.session.commit()
-
-    return "OK", 200
 
 
 @app.route("/api/hitpay/status/<order_no>")
@@ -2261,7 +3059,7 @@ def token_slip(oid):
 @staff_required_open
 def bill(oid):
     order = db.get_or_404(Order, oid)
-    fmt   = request.args.get("format","a4")
+    fmt   = request.args.get("format","thermal")
     return render_template("bill.html", order=order,
                            restaurant=get_restaurant_info(), fmt=fmt, settings=get_settings())
 
@@ -2301,6 +3099,8 @@ def migrate_db():
             ("takeaway_no","INTEGER"),
             ("master_key_used","BOOLEAN DEFAULT 0"),
             ("delivery_address","VARCHAR(255) DEFAULT ''"),
+            ("is_chased","BOOLEAN DEFAULT 0"),
+            ("chased_at","DATETIME"),
         ]:
             if col not in o_cols:
                 try: cur.execute(f'ALTER TABLE "order" ADD COLUMN {col} {typ}')
@@ -2378,6 +3178,56 @@ def migrate_db():
                 locked_until DATETIME,
                 updated_at DATETIME
             )""")
+
+        # RestaurantTable columns
+        t_cols = cols("restaurant_table")
+        if "qr_enabled" not in t_cols:
+            try: cur.execute("ALTER TABLE restaurant_table ADD COLUMN qr_enabled BOOLEAN DEFAULT 1")
+            except Exception: pass
+        if "token" not in t_cols:
+            try: cur.execute("ALTER TABLE restaurant_table ADD COLUMN token VARCHAR(32) DEFAULT ''")
+            except Exception: pass
+        if "assigned_waiter_id" not in t_cols:
+            try: cur.execute("ALTER TABLE restaurant_table ADD COLUMN assigned_waiter_id INTEGER")
+            except Exception: pass
+        if "assigned_waiter_name" not in t_cols:
+            try: cur.execute("ALTER TABLE restaurant_table ADD COLUMN assigned_waiter_name VARCHAR(80) DEFAULT ''")
+            except Exception: pass
+
+        # TableRequest table
+        if "table_request" not in tables_exist():
+            cur.execute("""CREATE TABLE IF NOT EXISTS table_request (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                table_number INTEGER NOT NULL,
+                table_id INTEGER,
+                request_type VARCHAR(40) NOT NULL,
+                message VARCHAR(255) DEFAULT '',
+                status VARCHAR(20) DEFAULT 'pending',
+                assigned_waiter_id INTEGER,
+                assigned_waiter_name VARCHAR(80) DEFAULT '',
+                created_at DATETIME,
+                resolved_at DATETIME,
+                resolved_by VARCHAR(60) DEFAULT ''
+            )""")
+        else:
+            tr_cols = cols("table_request")
+            if "assigned_waiter_id" not in tr_cols:
+                try: cur.execute("ALTER TABLE table_request ADD COLUMN assigned_waiter_id INTEGER")
+                except Exception: pass
+            if "assigned_waiter_name" not in tr_cols:
+                try: cur.execute("ALTER TABLE table_request ADD COLUMN assigned_waiter_name VARCHAR(80) DEFAULT ''")
+                except Exception: pass
+
+        # Order created_by, assigned_waiter_id, payment_ref columns
+        if "created_by" not in o_cols:
+            try: cur.execute("ALTER TABLE \"order\" ADD COLUMN created_by VARCHAR(80) DEFAULT ''")
+            except Exception: pass
+        if "assigned_waiter_id" not in o_cols:
+            try: cur.execute("ALTER TABLE \"order\" ADD COLUMN assigned_waiter_id INTEGER")
+            except Exception: pass
+        if "payment_ref" not in o_cols:
+            try: cur.execute("ALTER TABLE \"order\" ADD COLUMN payment_ref VARCHAR(120) DEFAULT ''")
+            except Exception: pass
 
         conn.commit()
         conn.close()

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Table {{ table.number }} QR — {{ restaurant.name }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Forum&family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f3f4f6;
+    font-family: 'Open Sans', sans-serif;
+    color: #1f2937;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .no-print-bar {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #C65A1E;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .btn-outline {
+    background: #fff;
+    color: #374151;
+    border: 1.5px solid #d1d5db;
+  }
+  .card {
+    background: #fff;
+    width: 380px;
+    max-width: 100%;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border: 2px solid #e5e7eb;
+    padding: 32px 28px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: linear-gradient(90deg, #C65A1E, #e07a3f, #C65A1E);
+  }
+  .logo-wrap {
+    margin-bottom: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid #C65A1E;
+    overflow: hidden;
+    background: #fff;
+  }
+  .logo-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .logo-fallback {
+    font-family: 'Forum', serif;
+    font-size: 28px;
+    color: #C65A1E;
+    font-weight: 700;
+  }
+  .rest-name {
+    font-family: 'Forum', serif;
+    font-size: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+  .tagline {
+    font-size: 11px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 18px;
+  }
+  .table-badge {
+    display: inline-block;
+    background: #fef2f2;
+    border: 2px solid #C65A1E;
+    color: #C65A1E;
+    font-size: 22px;
+    font-weight: 800;
+    padding: 6px 24px;
+    border-radius: 999px;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .qr-wrap {
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 16px;
+    padding: 16px;
+    display: inline-block;
+    margin-bottom: 18px;
+  }
+  .qr-wrap img {
+    width: 200px;
+    height: 200px;
+    display: block;
+    border-radius: 8px;
+  }
+  .instructions {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .inst-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .inst-steps {
+    font-size: 11.5px;
+    color: #4b5563;
+    line-height: 1.5;
+    text-align: left;
+    list-style-position: inside;
+    padding-left: 6px;
+  }
+  .inst-steps li {
+    margin-bottom: 3px;
+  }
+  .inst-steps b {
+    color: #1f2937;
+  }
+  .footer-note {
+    font-size: 10px;
+    color: #9ca3af;
+    letter-spacing: 0.5px;
+  }
+
+  @media print {
+    body {
+      background: #fff;
+      padding: 0;
+      min-height: auto;
+    }
+    .no-print-bar {
+      display: none !important;
+    }
+    .card {
+      box-shadow: none;
+      border: 1.5px solid #d1d5db;
+      margin: 0 auto;
+      page-break-inside: avoid;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="no-print-bar">
+  <button class="btn" onclick="window.print()">
+    <iconify-icon icon="solar:printer-2-linear" width="18"></iconify-icon> Print QR Stand Card
+  </button>
+  <a href="/mb-console-2024" class="btn btn-outline">
+    <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon> Back to Admin
+  </a>
+</div>
+
+<div class="card">
+  <div class="logo-wrap">
+    <img src="{{ restaurant.logo_light_mode_url or restaurant.logo_dark_mode_url or '/static/favicon.jpg' }}" alt="Logo">
+  </div>
+
+  <div class="rest-name">{{ restaurant.name }}</div>
+  <div class="tagline">{{ restaurant.tagline }}</div>
+
+  <div class="table-badge">TABLE {{ table.number }}</div>
+
+  <div class="qr-wrap">
+    <img src="/admin/qr/{{ table.number }}.png" alt="Table {{ table.number }} QR Code">
+  </div>
+
+  <div class="instructions">
+    <div class="inst-title">
+      <iconify-icon icon="solar:smartphone-linear" style="color:#C65A1E;"></iconify-icon>
+      Scan with Your Phone Camera
+    </div>
+    <ol class="inst-steps">
+      <li><b>No app or login needed</b> — scan & start browsing</li>
+      <li>Order food & drinks directly to your table</li>
+      <li>Need water or help? Tap <b>🔔 Call Staff</b> anytime</li>
+    </ol>
+  </div>
+
+  <div class="footer-note">
+    Table token: {{ table.token[:8] }}... · {{ restaurant.address }}
+  </div>
+</div>
+
+</body>
+</html>
+

@@ -5,19 +5,59 @@
   <div class="border-b border-white/5 px-4 py-4">
     <div class="max-w-lg mx-auto flex items-center justify-between">
       <a href="/" class="font-forum text-xl text-white uppercase">{{ restaurant.name }}</a>
+      {% if order.table_number %}
+      <a href="/order" class="text-neutral-400 text-sm hover:text-accent flex items-center gap-1">← Table {{ order.table_number }} Menu</a>
+      {% elif session.get("customer_id") %}
       <a href="/customer/dashboard" class="text-neutral-400 text-sm hover:text-accent">← My Orders</a>
+      {% else %}
+      <a href="/order" class="text-neutral-400 text-sm hover:text-accent">← Menu</a>
+      {% endif %}
     </div>
   </div>
   <div class="max-w-lg mx-auto px-4 py-8">
     <div class="text-center mb-8">
+      {% if order.table_number %}
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 border border-accent/30 text-accent text-xs font-semibold uppercase tracking-wider mb-2">
+        <iconify-icon icon="solar:users-group-rounded-linear"></iconify-icon> Table {{ order.table_number }} (Dine-in)
+      </div>
+      {% endif %}
       <div class="text-neutral-500 text-sm mb-1">Order</div>
       <div class="font-forum text-3xl text-white">{{ order.order_no }}</div>
+      {% if order.waiter_name %}
+      <div class="text-xs text-neutral-400 mt-1 flex items-center justify-center gap-1">
+        <iconify-icon icon="solar:user-linear" class="text-accent"></iconify-icon>
+        <span>Assigned Waiter: <strong class="text-white font-semibold">{{ order.waiter_name }}</strong></span>
+      </div>
+      {% endif %}
       {% if order.token_no %}
       <div class="mt-2 inline-block bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-1">
         <span class="text-neutral-500 text-xs">Token: </span>
         <span class="text-green-400 font-bold text-lg">{{ order.token_no }}</span>
       </div>
       {% endif %}
+
+      <!-- Payment Status Alert Banner -->
+      <div class="mt-4 max-w-sm mx-auto">
+        {% if order.payment_status == 'paid' %}
+        <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-2">
+          <iconify-icon icon="solar:check-circle-bold" class="text-base text-emerald-400"></iconify-icon>
+          <span>Payment Confirmed ({% if order.payment_method == 'hitpay' %}Paid Online via HitPay{% else %}{{ order.payment_method|upper }}{% endif %})</span>
+        </div>
+        {% elif order.payment_status == 'pay_at_counter' %}
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-amber-300 text-xs text-left">
+          <div class="font-bold flex items-center gap-1.5 mb-1">
+            <iconify-icon icon="solar:wallet-money-bold" class="text-base text-amber-400"></iconify-icon>
+            <span>Pay at Counter — Settle After Meal</span>
+          </div>
+          <p class="text-[11px] text-neutral-400">Your order has been sent to the kitchen. Please proceed to the cashier counter to settle your bill when you finish dining.</p>
+        </div>
+        {% elif order.payment_status == 'pending_verification' %}
+        <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 text-blue-300 text-xs font-semibold flex items-center justify-center gap-2">
+          <iconify-icon icon="solar:clock-circle-bold" class="text-base text-blue-400"></iconify-icon>
+          <span>TnG Payment Verification Pending</span>
+        </div>
+        {% endif %}
+      </div>
     </div>
 
     <!-- Status Timeline -->
@@ -69,8 +109,17 @@
       </div>
     </div>
 
-    <div class="text-center">
-      <a href="/order" class="inline-block bg-accent text-white px-8 py-3 rounded-xl font-medium">Order More</a>
+    <div class="text-center space-y-3">
+      {% if order.status in ['pending', 'confirmed', 'preparing'] %}
+      <div>
+        <button id="btn-cust-chase" onclick="chaseMyOrder()" class="w-full sm:w-auto bg-amber-600/20 border border-amber-500/40 hover:bg-amber-600/30 text-amber-300 px-6 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 mx-auto">
+          <span>⚡ Where's my food? Follow up with Kitchen</span>
+        </button>
+      </div>
+      {% endif %}
+      <div>
+        <a href="/order{% if order.table_number %}?table={{ order.table_number }}{% endif %}" class="inline-block bg-accent hover:opacity-90 text-white px-8 py-3 rounded-xl font-bold text-sm transition">Order More</a>
+      </div>
     </div>
   </div>
 </div>
@@ -86,5 +135,23 @@ async function pollStatus(){
   }catch(e){}
 }
 setInterval(pollStatus, 5000);
+
+async function chaseMyOrder(){
+  const btn = document.getElementById('btn-cust-chase');
+  if(!btn) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span>⚡ Alerting Kitchen...</span>';
+  try{
+    const res = await fetch('/api/order/{{ order.id }}/chase', {method:'POST'});
+    const d = await res.json();
+    if(d.ok){
+      btn.className = 'w-full sm:w-auto bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 px-6 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 mx-auto';
+      btn.innerHTML = '<span>✓ Kitchen Alerted! Food is being prepared with priority.</span>';
+    }
+  }catch(e){
+    btn.disabled = false;
+    btn.innerHTML = '<span>⚡ Where\'s my food? Follow up with Kitchen</span>';
+  }
+}
 </script>
 {% endblock %}

@@ -220,11 +220,16 @@ html,body{height:100%;overflow:hidden;background:#f0f2f5;}
     <iconify-icon icon="solar:qr-code-linear"></iconify-icon> QR Order
     <span class="nbadge" id="b-qr">0</span>
   </button>
+  <button class="nb" style="background:#e11d48;color:#fff;" onclick="openPanel('calls')" id="btn-calls">
+    <iconify-icon icon="solar:bell-bold"></iconify-icon> Calls
+    <span class="nbadge" id="b-calls">0</span>
+  </button>
   <button class="nb nb-yellow" onclick="openPanel('online')">
     <iconify-icon icon="solar:global-linear"></iconify-icon> Online Order
     <span class="nbadge" id="b-online">0</span>
   </button>
   <button class="nb nb-blue" onclick="openPanel('today')"><iconify-icon icon="solar:calendar-date-linear"></iconify-icon> Today Order</button>
+  <a href="/tablet" class="nb" style="background:#0284c7;color:#fff;text-decoration:none;" title="Open Waiter/Manager Tablet Interface"><iconify-icon icon="solar:tablet-bold"></iconify-icon> Tablet</a>
   <div class="nr">
     <span style="font-size:12px;font-weight:700;color:#16a34a;background:#dcfce7;padding:6px 12px;border-radius:8px;">👤 {{ staff_name }}</span>
     <a class="ni" onclick="newOrder()" title="Clear">✕</a>
@@ -567,6 +572,68 @@ html,body{height:100%;overflow:hidden;background:#f0f2f5;}
   </div>
 </div>
 
+<!-- ══ QUICK COUNTER PAYMENT COLLECTION MODAL ══ -->
+<div class="ov" id="counter-collect-ov" onclick="closeCollectCounterPayment()">
+  <div style="background:#fff;border-radius:16px;width:min(480px,94vw);padding:22px;position:relative;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #f3f4f6;padding-bottom:12px;">
+      <div>
+        <div style="font-size:16px;font-weight:800;color:#111827;display:flex;align-items:center;gap:6px;">
+          <span style="color:#c2410c;">💳</span> Collect Counter Payment
+        </div>
+        <div id="cc-order-label" style="font-size:12px;color:#6b7280;margin-top:2px;">Order # — Table #</div>
+      </div>
+      <button onclick="closeCollectCounterPayment()" style="background:none;border:none;font-size:22px;color:#9ca3af;cursor:pointer;">✕</button>
+    </div>
+
+    <!-- Amount Due Banner -->
+    <div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:12px;padding:14px;text-align:center;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;color:#c2410c;text-transform:uppercase;letter-spacing:0.5px;">Amount to Collect</div>
+      <div id="cc-total-due" style="font-size:28px;font-weight:900;color:#9a3412;margin-top:2px;font-family:monospace;">RM 0.00</div>
+    </div>
+
+    <!-- Method Selection -->
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Select Payment Method</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="cc-methods">
+        <button type="button" onclick="setCollectMethod('cash')" id="cc-m-cash" class="cc-m-btn" style="border:2px solid #16a34a;background:#dcfce7;color:#15803d;padding:10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:18px;">💵</span> Cash
+        </button>
+        <button type="button" onclick="setCollectMethod('card')" id="cc-m-card" class="cc-m-btn" style="border:1.5px solid #e5e7eb;background:#fff;color:#374151;padding:10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:18px;">💳</span> Card
+        </button>
+        <button type="button" onclick="setCollectMethod('tng')" id="cc-m-tng" class="cc-m-btn" style="border:1.5px solid #e5e7eb;background:#fff;color:#374151;padding:10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:18px;">📱</span> Touch 'n Go
+        </button>
+        <button type="button" onclick="setCollectMethod('hitpay')" id="cc-m-hitpay" class="cc-m-btn" style="border:1.5px solid #e5e7eb;background:#fff;color:#374151;padding:10px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:18px;">🌐</span> Online (HitPay)
+        </button>
+      </div>
+    </div>
+
+    <!-- Cash Tender & Change (Shown when cash selected) -->
+    <div id="cc-cash-section" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:12px;font-weight:700;color:#374151;">Customer Cash Tendered (RM)</label>
+        <span id="cc-change-display" style="font-size:12px;font-weight:700;color:#16a34a;">Change Due: RM 0.00</span>
+      </div>
+      <input type="number" id="cc-cash-input" step="0.50" oninput="calcCollectChange()" style="width:100%;padding:10px 12px;font-size:16px;font-weight:700;border:1.5px solid #d1d5db;border-radius:8px;outline:none;" placeholder="Amount given">
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button type="button" onclick="ccQuickTender('exact')" style="flex:1;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">Exact</button>
+        <button type="button" onclick="ccQuickTender(10)" style="flex:1;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">RM 10</button>
+        <button type="button" onclick="ccQuickTender(20)" style="flex:1;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">RM 20</button>
+        <button type="button" onclick="ccQuickTender(50)" style="flex:1;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">RM 50</button>
+        <button type="button" onclick="ccQuickTender(100)" style="flex:1;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">RM 100</button>
+      </div>
+    </div>
+
+    <!-- Confirm Button -->
+    <button type="button" onclick="submitCollectCounterPayment()" id="cc-submit-btn" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(22,163,74,0.3);">
+      <iconify-icon icon="solar:check-circle-bold" style="font-size:18px;"></iconify-icon>
+      <span>Mark Order as PAID</span>
+    </button>
+  </div>
+</div>
+
 <!-- ══ SLIDE PANEL ══ -->
 <div class="spov" id="sp-ov" onclick="closeSP()"></div>
 <div class="spbox" id="sp-box">
@@ -658,6 +725,19 @@ html,body{height:100%;overflow:hidden;background:#f0f2f5;}
 </div>
 
 
+<!-- FLOATING NOTIFICATION BANNER -->
+<div id="incoming-notif" style="display:none;position:fixed;top:16px;right:16px;z-index:9999;width:380px;max-width:92vw;background:#111827;color:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 12px 35px rgba(0,0,0,0.45);border-left:5px solid #16a34a;transition:all .3s ease;">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+    <div style="flex:1;">
+      <div id="incoming-notif-title" style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#9ca3af;margin-bottom:3px;">Notification</div>
+      <div id="incoming-notif-text" style="font-size:14px;font-weight:800;color:#fff;line-height:1.35;"></div>
+      <div id="incoming-notif-sub" style="font-size:12px;color:#d1d5db;margin-top:4px;line-height:1.4;"></div>
+    </div>
+    <button onclick="document.getElementById('incoming-notif').style.display='none'" style="background:none;border:none;color:#9ca3af;font-size:18px;cursor:pointer;padding:0;line-height:1;">✕</button>
+  </div>
+  <div id="incoming-notif-actions" style="display:flex;gap:8px;margin-top:12px;"></div>
+</div>
+
 <!-- BILL OVERLAY -->
 <div id="bill-overlay-wrap" style="display:none;position:fixed;inset:0;background:#000;z-index:300;flex-direction:column;">
   <div style="background:#333;padding:8px;display:flex;gap:8px;flex-shrink:0;">
@@ -696,14 +776,41 @@ function payMethodLabel(o){
 }
 function paymentBadgeHtml(o){
   if(o.payment_status==='paid'){
+    if((o.payment_method||'').toLowerCase()==='hitpay'){
+      return `<span class="badge" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-weight:700;">✓ Paid Online — HitPay</span>`;
+    }
     const online = o.source!=='pos' && o.payment_method!=='cash';
     return `<span class="badge bpaid">✓ Paid${online?' Online':''} · ${payMethodLabel(o)}</span>`;
+  }
+  if(o.payment_status==='pay_at_counter'){
+    return `<span class="badge" style="background:#fff7ed;color:#c2410c;border:1.5px solid #fdba74;font-weight:800;">⚠️ Pay at Counter — Pending</span>`;
   }
   if(o.payment_status==='pending_verification'){
     return `<span class="badge btng">⏳ ${payMethodLabel(o)} — Verify</span>`;
   }
   return `<span class="badge bunpaid">Unpaid</span>`;
 }
+
+function sourceBadgeHtml(o){
+  const s = o.source || 'pos';
+  if(s === 'customer_qr' || s === 'qr'){
+    return `<span class="badge bqr" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-weight:700;">📱 Customer QR</span>`;
+  }
+  if(s === 'waiter_tablet' || (o.created_by && ['ahmed','bilal','ali'].includes(o.created_by.toLowerCase()))){
+    return `<span class="badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-weight:700;">🍽️ Waiter Order (${o.waiter_name||o.created_by})</span>`;
+  }
+  if(s === 'manager_tablet' || (o.created_by && o.created_by.toLowerCase()==='manager')){
+    return `<span class="badge" style="background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe;font-weight:700;">👔 Manager Order (${o.created_by})</span>`;
+  }
+  if(s === 'online'){
+    return `<span class="badge bonline" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;font-weight:700;">🌐 Online</span>`;
+  }
+  if(['grab','foodpanda','lalamove','shopee'].includes(s)){
+    return `<span class="badge btng">${s.toUpperCase()}</span>`;
+  }
+  return `<span class="badge bpos">🖥️ POS</span>`;
+}
+
 
 // ════════════════════════════════════════
 // ORDER MODE (Dine In / Takeaway / Delivery)
@@ -1026,19 +1133,94 @@ async function placeOrder(quick){
 }
 
 // ════════════════════════════════════════
-// BADGES
+// BADGES & CALL NOTIFICATIONS
 // ════════════════════════════════════════
+let _seenCalls = {};
+
+function bellTableCall(){
+  try{
+    const c = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1320].forEach((f, i) => {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      o.connect(g); g.connect(c.destination);
+      const s = c.currentTime + i * 0.16;
+      g.gain.setValueAtTime(0.001, s);
+      g.gain.exponentialRampToValueAtTime(0.35, s + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, s + 0.3);
+      o.start(s); o.stop(s + 0.32);
+    });
+  }catch(e){}
+}
+
+function showTableCallNotif(c){
+  const el = document.getElementById('incoming-notif');
+  if(!el) return;
+  const icons = { water:'💧', cutlery:'🍽️', tissue:'🧻', assistance:'👨‍🍳', bill:'💳', other:'🪑' };
+  el.style.borderLeftColor = '#e11d48';
+  document.getElementById('incoming-notif-title').textContent = '🔔 TABLE CALL REQUEST';
+  document.getElementById('incoming-notif-text').textContent = `Table ${c.table_number} — ${icons[c.request_type]||'🔔'} ${(c.request_type||'').toUpperCase()}`;
+  document.getElementById('incoming-notif-sub').textContent = c.message ? `"${c.message}"` : 'Customer at Table '+c.table_number+' requested assistance.';
+  document.getElementById('incoming-notif-actions').innerHTML = `
+    <button onclick="chCallStatus(${c.id}, 'acknowledged'); document.getElementById('incoming-notif').style.display='none';" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">✓ Acknowledge</button>
+    <button onclick="openPanel('calls'); document.getElementById('incoming-notif').style.display='none';" style="background:#374151;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">View All Calls</button>
+  `;
+  el.style.display = 'block';
+  setTimeout(() => { if(el.style.display==='block') el.style.display='none'; }, 10000);
+}
+
 async function loadBadges(){
-  const res=await fetch('/api/pos/orders');
-  const all=await res.json();
-  checkOrderReady(all);
-  all.forEach(o=>{ _posOrders[o.id]=o; });
-  document.getElementById('b-ongoing').textContent=all.filter(o=>['confirmed','preparing','ready','served'].includes(o.status)).length;
-  document.getElementById('b-qr').textContent=all.filter(o=>o.source==='qr'&&o.status==='pending').length;
-  document.getElementById('b-online').textContent=all.filter(o=>o.source==='online'&&o.status==='pending').length;
-  // bell for new pending
-  all.filter(o=>o.status==='pending').forEach(o=>{ if(!_firstLoad&&!_bc[o.id]) bellIncoming(); _bc[o.id]=true; });
-  _firstLoad=false;
+  try{
+    const res = await fetch('/api/pos/orders');
+    const all = await res.json();
+    checkOrderReady(all);
+    all.forEach(o => { _posOrders[o.id] = o; });
+    document.getElementById('b-ongoing').textContent = all.filter(o => ['confirmed','preparing','ready','served'].includes(o.status)).length;
+    document.getElementById('b-qr').textContent = all.filter(o => ['customer_qr','qr'].includes(o.source) && o.status === 'pending').length;
+    document.getElementById('b-online').textContent = all.filter(o => o.source === 'online' && o.status === 'pending').length;
+    
+    // bell for new pending
+    all.filter(o => o.status === 'pending').forEach(o => {
+      if(!_firstLoad && !_bc[o.id]){
+        bellIncoming();
+        if(['customer_qr','qr'].includes(o.source)){
+          const el = document.getElementById('incoming-notif');
+          if(el){
+            el.style.borderLeftColor = '#16a34a';
+            document.getElementById('incoming-notif-title').textContent = '📱 NEW CUSTOMER QR ORDER';
+            document.getElementById('incoming-notif-text').textContent = (o.table_number ? 'Table ' + o.table_number + ' — ' : '') + o.order_no;
+            document.getElementById('incoming-notif-sub').textContent = (o.items||[]).map(i => i.qty + '× ' + i.name).join(', ') + ' · RM ' + o.total.toFixed(2);
+            document.getElementById('incoming-notif-actions').innerHTML = `
+              <button onclick="chStatus(${o.id},'confirmed','ongoing'); document.getElementById('incoming-notif').style.display='none';" style="background:#16a34a;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">✓ Accept Order</button>
+              <button onclick="openPanel('qr'); document.getElementById('incoming-notif').style.display='none';" style="background:#374151;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">View QR Orders</button>
+            `;
+            el.style.display = 'block';
+            setTimeout(() => { if(el.style.display==='block') el.style.display='none'; }, 8000);
+          }
+        }
+      }
+      _bc[o.id] = true;
+    });
+  }catch(e){}
+
+  // Table Call requests
+  try{
+    const cres = await fetch('/api/pos/table-requests');
+    if(cres.ok){
+      const calls = await cres.json();
+      const badgeCalls = document.getElementById('b-calls');
+      if(badgeCalls) badgeCalls.textContent = calls.length;
+      calls.filter(c => c.status === 'pending').forEach(c => {
+        if(!_firstLoad && !_seenCalls[c.id]){
+          bellTableCall();
+          showTableCallNotif(c);
+        }
+        _seenCalls[c.id] = c.status;
+      });
+    }
+  }catch(e){}
+
+  _firstLoad = false;
 }
 
 // ════════════════════════════════════════
@@ -1047,20 +1229,72 @@ async function loadBadges(){
 function openPanel(type){
   document.getElementById('sp-ov').style.display='block';
   document.getElementById('sp-box').style.display='flex';
-  const titles={ongoing:'On Going Order',qr:'QR Orders',online:'Online Orders',kitchen:'Kitchen Status',today:"Today's Orders"};
-  document.getElementById('sp-title').textContent=titles[type];
+  const titles={ongoing:'On Going Order',qr:'QR Orders',calls:'Customer Table Calls & Bell',online:'Online Orders',kitchen:'Kitchen Status',today:"Today's Orders"};
+  document.getElementById('sp-title').textContent=titles[type]||'Orders';
   document.getElementById('sp-search-wrap').style.display=type==='ongoing'?'flex':'none';
   renderPanel(type);
 }
 function closeSP(){ document.getElementById('sp-ov').style.display='none'; document.getElementById('sp-box').style.display='none'; }
 
+async function renderCallsPanel(){
+  const body = document.getElementById('sp-body');
+  body.innerHTML = '<div style="padding:30px;text-align:center;color:#9ca3af;">Loading requests…</div>';
+  const res = await fetch('/api/pos/table-requests');
+  const calls = await res.json();
+  if(!calls.length){
+    body.innerHTML = '<div style="padding:50px;text-align:center;color:#9ca3af;font-size:14px;"><iconify-icon icon="solar:bell-linear" style="font-size:40px;display:block;margin:0 auto 10px;color:#d1d5db;"></iconify-icon>No active table requests at this moment.</div>';
+    return;
+  }
+  const icons = { water:'💧', cutlery:'🍽️', tissue:'🧻', assistance:'👨‍🍳', bill:'💳', other:'🪑' };
+  body.innerHTML = `
+    <div style="padding:14px;display:flex;flex-direction:column;gap:12px;">
+      ${calls.map(c => `
+        <div style="background:#fff;border:1.5px solid ${c.status==='pending'?'#fca5a5':'#e5e7eb'};border-radius:12px;padding:14px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="background:#fef2f2;border:1.5px solid #e11d48;color:#e11d48;font-weight:800;font-size:13px;padding:3px 10px;border-radius:6px;">TABLE ${c.table_number}</span>
+              <span style="font-size:14px;font-weight:700;color:#111827;">${icons[c.request_type]||'🔔'} <span style="text-transform:capitalize;">${c.request_type} Required</span></span>
+            </div>
+            <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;${c.status==='pending'?'background:#fef3c7;color:#d97706;border:1px solid #fde68a;':'background:#dbeafe;color:#2563eb;border:1px solid #bfdbfe;'}">
+              ${c.status==='pending' ? '⏳ Pending' : '🏃 Staff Attending'}
+            </span>
+          </div>
+          ${c.message ? `<div style="font-size:13px;color:#374151;background:#f9fafb;border-radius:8px;padding:8px 12px;margin-bottom:10px;border-left:3px solid #C65A1E;font-style:italic;">"${c.message}"</div>` : ''}
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <div style="font-size:11px;color:#6b7280;">Received: <b>${c.time_str || c.created_at}</b></div>
+            <div style="display:flex;gap:6px;">
+              ${c.status==='pending' ? `<button onclick="chCallStatus(${c.id},'acknowledged')" style="background:#2563eb;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><iconify-icon icon="solar:check-circle-linear"></iconify-icon> Acknowledge</button>` : ''}
+              <button onclick="chCallStatus(${c.id},'completed')" style="background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><iconify-icon icon="solar:check-read-linear"></iconify-icon> Complete</button>
+              <button onclick="chCallStatus(${c.id},'cancelled')" style="background:#f3f4f6;color:#ef4444;border:1px solid #e5e7eb;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;">Dismiss</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function chCallStatus(id, status){
+  await fetch('/api/pos/table-request/'+id+'/status', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  loadBadges();
+  renderCallsPanel();
+}
+
 async function renderPanel(type){
+  if(type === 'calls'){
+    await renderCallsPanel();
+    return;
+  }
   document.getElementById('sp-body').innerHTML='<div style="padding:30px;text-align:center;color:#9ca3af;">Loading…</div>';
   const res=await fetch('/api/pos/orders');
   const all=await res.json();
   let orders;
   if(type==='ongoing') orders=all.filter(o=>['confirmed','preparing','ready','served'].includes(o.status));
-  else if(type==='qr') orders=all.filter(o=>o.source==='qr');
+  else if(type==='qr') orders=all.filter(o=>['customer_qr','qr'].includes(o.source));
   else if(type==='online') orders=all.filter(o=>o.source==='online');
   else if(type==='kitchen') orders=all.filter(o=>['confirmed','preparing','ready'].includes(o.status));
   else orders=all;
@@ -1071,7 +1305,9 @@ async function renderPanel(type){
     // Card grid view like reference image 2
     document.getElementById('sp-body').innerHTML=`
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:14px;">
-        ${orders.map(o=>`
+        ${orders.map(o=>{
+          const isQr = ['customer_qr','qr'].includes(o.source);
+          return `
           <div class="ocard" id="oc-${o.id}">
             <div class="on-hd">
               <div class="kv">
@@ -1095,30 +1331,39 @@ async function renderPanel(type){
             ${o.delivery_address ? `<div style="font-size:11px;color:#d97706;margin-bottom:6px;">📍 ${o.delivery_address}</div>` : ''}
             <div style="font-size:11px;color:#6b7280;margin-bottom:8px;line-height:1.5;">${o.items.map(i=>`${i.qty}× ${i.name}`).join(', ')}</div>
             <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;flex-wrap:wrap;">
-              <span class="badge b${['grab','foodpanda','lalamove','shopee'].includes(o.source)?'tng':o.source==='qr'?'qr':o.source==='online'?'online':'pos'}">${o.source==='grab'?'🟢 Grab':o.source==='foodpanda'?'🔴 Panda':o.source==='lalamove'?'🟠 Lala':o.source==='shopee'?'🟡 Shopee':o.source==='qr'?'📱 QR':o.source==='online'?'🌐 Online':'🖥 POS'}</span>
+              ${sourceBadgeHtml(o)}
               ${paymentBadgeHtml(o)}
               <span style="font-size:11px;font-weight:700;color:#16a34a;margin-left:auto;">RM ${o.total.toFixed(2)}</span>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+              ${o.payment_status==='pay_at_counter' ? `
+                <button onclick="openCollectCounterPayment(${o.id}, ${o.total}, '${o.order_no}', '${o.table_number||''}')" style="grid-column:span 2;background:#c2410c;color:#fff;padding:9px 10px;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:6px;box-shadow:0 2px 8px rgba(194,65,12,0.3);">
+                  <iconify-icon icon="solar:wallet-money-bold"></iconify-icon> [ Collect Payment ]
+                </button>
+              ` : ''}
               <button onclick="startAddItems(${o.id}, '${(o.token_no||o.order_no).replace(/'/g,"")}${o.table_number?' · Table '+o.table_number:''}')" class="ob ob-split"><iconify-icon icon="solar:add-circle-linear"></iconify-icon> Add Items</button>
               <button onclick="completeOrder(${o.id}, ${o.total})" class="ob ob-complete"><iconify-icon icon="solar:check-circle-linear"></iconify-icon> Complete</button>
-              <button onclick="_posOrders[${o.id}]&&openSplitModal(${o.id},_posOrders[${o.id}].items)" class="ob ob-split"><iconify-icon icon="solar:chart-2-linear"></iconify-icon> Split</button>
+              <button onclick="chaseOrderPos(${o.id}, '${o.order_no}')" class="ob" style="background:${o.is_chased?'#d97706':'#f59e0b'};color:#fff;border:none;justify-content:center;display:flex;align-items:center;gap:4px;"><iconify-icon icon="solar:bolt-linear"></iconify-icon> ${o.is_chased ? '⚡ Chased' : '⚡ Chase'}</button>
+              <button onclick="changeTablePos(${o.id}, ${o.table_number||0})" class="ob" style="background:#3b82f6;color:#fff;border:none;justify-content:center;display:flex;align-items:center;gap:4px;"><iconify-icon icon="solar:chair-linear"></iconify-icon> Move Table</button>
               <button onclick="deleteOrder(${o.id})" class="ob ob-delete"><iconify-icon icon="solar:trash-bin-2-linear"></iconify-icon> Delete</button>
-              <button onclick="copyOrder(${o.id})" class="ob ob-copy"><iconify-icon icon="solar:copy-linear"></iconify-icon> Copy</button>
               ${o.payment_status==='pending_verification'?`<button onclick="verifyTng(${o.id})" style="grid-column:span 2;background:#00b4d8;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:5px;"><iconify-icon icon='solar:wallet-check-linear'></iconify-icon> ✓ Verify TnG Payment</button>`:''}
+
               <button onclick="showBillOverlay('/bill/${o.id}?format=a4')" class="ob ob-invoice" style="justify-content:center;"><iconify-icon icon="solar:bill-list-linear"></iconify-icon> Invoice</button>
               <a href="/token/${o.id}" target="_blank" class="ob" style="background:#059669;color:#fff;text-decoration:none;justify-content:center;display:flex;align-items:center;gap:5px;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;"><iconify-icon icon="solar:ticket-linear"></iconify-icon> Token Slip</a>
+
             </div>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>`;
     startTimers(orders);
   } else {
     // List view for other panels
-    document.getElementById('sp-body').innerHTML=orders.map(o=>`
+    document.getElementById('sp-body').innerHTML=orders.map(o=>{
+      return `
       <div style="margin:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
         <div style="padding:12px 14px;border-bottom:1px solid #f3f4f6;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
           <span style="font-weight:700;color:#1f2937;font-size:14px;">${o.order_no}</span>
-          <span class="badge b${o.source==='qr'?'qr':o.source==='online'?'online':'pos'}">${o.source==='qr'?'📱 QR':o.source==='online'?'🌐 Online':'🖥 POS'}</span>
+          ${sourceBadgeHtml(o)}
           <span class="badge b${o.status}" style="background:#ede9fe;color:#7c3aed;">${o.status}</span>
           ${paymentBadgeHtml(o)}
           <span style="margin-left:auto;font-size:15px;font-weight:700;color:#16a34a;">RM ${o.total.toFixed(2)}</span>
@@ -1129,12 +1374,17 @@ async function renderPanel(type){
           ${o.delivery_address ? `<div style="font-size:12px;color:#d97706;margin-bottom:6px;">📍 ${o.delivery_address}</div>` : ''}
           <div style="font-size:12px;color:#374151;margin-bottom:8px;">${o.items.map(i=>`${i.qty}× <b>${i.name}</b>`).join(', ')}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${o.payment_status==='pay_at_counter'?`<button onclick="openCollectCounterPayment(${o.id}, ${o.total}, '${o.order_no}', '${o.table_number||''}')" style="background:#c2410c;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:4px;"><iconify-icon icon='solar:wallet-money-bold'></iconify-icon> [ Collect Payment ]</button>`:''}
             ${o.status==='pending'?`<button onclick="chStatus(${o.id},'confirmed','${type}')" class="ob ob-complete"><iconify-icon icon="solar:check-circle-linear"></iconify-icon> Accept</button>`:''}
             ${['confirmed'].includes(o.status)?`<button onclick="chStatus(${o.id},'preparing','${type}')" class="ob ob-split">👨‍🍳 Preparing</button>`:''}
-            <a href="/bill/${o.id}" target="_blank" class="ob ob-invoice"><iconify-icon icon="solar:bill-list-linear"></iconify-icon> Invoice</a>
+            <button onclick="chaseOrderPos(${o.id}, '${o.order_no}')" class="ob" style="background:#f59e0b;color:#fff;border:none;padding:7px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><iconify-icon icon="solar:bolt-linear"></iconify-icon> ${o.is_chased ? '⚡ Chased' : '⚡ Chase'}</button>
+            <button onclick="changeTablePos(${o.id}, ${o.table_number||0})" class="ob" style="background:#3b82f6;color:#fff;border:none;padding:7px 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><iconify-icon icon="solar:chair-linear"></iconify-icon> Move Table</button>
+            <a href="/bill/${o.id}?format=thermal&autoprint=1" target="_blank" class="ob ob-invoice"><iconify-icon icon="solar:printer-2-linear"></iconify-icon> Receipt</a>
+            <a href="/bill/${o.id}?format=a4" target="_blank" class="ob" style="background:#6b7280;color:#fff;border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px;"><iconify-icon icon="solar:document-linear"></iconify-icon> A4</a>
           </div>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 }
 
@@ -1244,12 +1494,153 @@ async function payNowPrint(){
   });
   if(!res.ok){ alert('Payment failed, try again'); return; }
   closePayModal();
-  // Open bill - works on tablet and desktop
-  // Show bill in fullscreen overlay - no popup needed
-  showBillOverlay('/bill/'+orderId+'?format=a4');
+  // Open thermal bill in fullscreen overlay with autoprint
+  showBillOverlay('/bill/'+orderId+'?format=thermal&autoprint=1');
   loadBadges();
   renderPanel('ongoing');
 }
+
+// ════════════════════════════════════════
+// COUNTER PAYMENT COLLECTION MODAL LOGIC
+// ════════════════════════════════════════
+let _ccOrderId = null;
+let _ccOrderTotal = 0;
+let _ccSelectedMethod = 'cash';
+
+function openCollectCounterPayment(orderId, total, orderNo, tableNum){
+  _ccOrderId = orderId;
+  _ccOrderTotal = total || 0;
+  _ccSelectedMethod = 'cash';
+
+  document.getElementById('cc-order-label').textContent = `Order ${orderNo || ('#'+orderId)} ${tableNum ? ' · Table '+tableNum : ''}`;
+  document.getElementById('cc-total-due').textContent = 'RM ' + _ccOrderTotal.toFixed(2);
+  document.getElementById('cc-cash-input').value = _ccOrderTotal.toFixed(2);
+  
+  setCollectMethod('cash');
+  calcCollectChange();
+  document.getElementById('counter-collect-ov').classList.add('show');
+}
+
+function closeCollectCounterPayment(){
+  document.getElementById('counter-collect-ov').classList.remove('show');
+  _ccOrderId = null;
+}
+
+function setCollectMethod(method){
+  _ccSelectedMethod = method;
+  document.querySelectorAll('.cc-m-btn').forEach(btn => {
+    btn.style.borderColor = '#e5e7eb';
+    btn.style.background = '#fff';
+    btn.style.color = '#374151';
+  });
+  const activeBtn = document.getElementById('cc-m-' + method);
+  if(activeBtn){
+    activeBtn.style.borderColor = '#16a34a';
+    activeBtn.style.background = '#dcfce7';
+    activeBtn.style.color = '#15803d';
+  }
+  const cashSec = document.getElementById('cc-cash-section');
+  if(cashSec){
+    cashSec.style.display = (method === 'cash') ? 'block' : 'none';
+  }
+}
+
+function calcCollectChange(){
+  const cashGiven = parseFloat(document.getElementById('cc-cash-input').value) || 0;
+  const change = Math.max(cashGiven - _ccOrderTotal, 0);
+  document.getElementById('cc-change-display').textContent = 'Change Due: RM ' + change.toFixed(2);
+}
+
+function ccQuickTender(amount){
+  if(amount === 'exact'){
+    document.getElementById('cc-cash-input').value = _ccOrderTotal.toFixed(2);
+  } else {
+    document.getElementById('cc-cash-input').value = parseFloat(amount).toFixed(2);
+  }
+  calcCollectChange();
+}
+
+async function submitCollectCounterPayment(){
+  if(!_ccOrderId){ alert('No order selected.'); return; }
+  const currentId = _ccOrderId;
+  const btn = document.getElementById('cc-submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<iconify-icon icon="solar:refresh-linear" class="animate-spin"></iconify-icon> Processing...';
+
+  const customerPaid = (_ccSelectedMethod === 'cash') 
+    ? (parseFloat(document.getElementById('cc-cash-input').value) || _ccOrderTotal)
+    : _ccOrderTotal;
+
+  try {
+    const res = await fetch(`/api/order/${currentId}/collect-counter-payment`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        payment_method: _ccSelectedMethod,
+        customer_paid: customerPaid
+      })
+    });
+
+    const data = await res.json();
+    if(data.error){
+      alert('Error collecting payment: ' + data.error);
+      btn.disabled = false;
+      btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:18px;"></iconify-icon><span>Mark Order as PAID</span>';
+      return;
+    }
+
+    closeCollectCounterPayment();
+    btn.disabled = false;
+    btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:18px;"></iconify-icon><span>Mark Order as PAID</span>';
+    
+    // Refresh badges and ongoing panel
+    loadBadges();
+    renderPanel('ongoing');
+    bellCart();
+
+    // Show thermal receipt automatically
+    showBillOverlay('/bill/'+currentId+'?format=thermal&autoprint=1');
+  } catch(e){
+    alert('Network error: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<iconify-icon icon="solar:check-circle-bold" style="font-size:18px;"></iconify-icon><span>Mark Order as PAID</span>';
+  }
+}
+
+async function chaseOrderPos(orderId, orderNo){
+  try{
+    const res = await fetch(`/api/order/${orderId}/chase`, {method:'POST'});
+    const d = await res.json();
+    if(d.ok){
+      toast(`⚡ Order #${orderNo} chased to Kitchen!`, 'warning');
+      loadBadges();
+      renderPanel('ongoing');
+    } else {
+      alert(d.error || 'Failed to chase order');
+    }
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+async function changeTablePos(orderId, currentTable){
+  const newTable = prompt(`Move Order to which table? (Current: Table ${currentTable||'None'}):`);
+  if(!newTable) return;
+  try{
+    const res = await fetch(`/api/order/${orderId}/change-table`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({new_table_number: parseInt(newTable)})
+    });
+    const d = await res.json();
+    if(d.ok){
+      toast(`✓ Order moved to Table ${d.new_table}! (Waiter: ${d.waiter_name})`, 'success');
+      loadBadges();
+      renderPanel('ongoing');
+    } else {
+      alert(d.error || 'Failed to move table');
+    }
+  }catch(e){ alert('Error: '+e.message); }
+}
+
 
 // ════════════════════════════════════════
 // CALCULATOR

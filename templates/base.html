@@ -28,15 +28,15 @@
 <meta name="apple-mobile-web-app-title" content="{{ restaurant.name|default('Islamabad Restaurant & Cafe') }}">
 <!-- Favicon — admin-editable (Site Settings → Appearance); falls back to
      the template's bundled default if nothing's been uploaded. -->
-<link rel="apple-touch-icon" href="{{ restaurant.favicon_url or '/static/favicon.jpg' }}">
-<link rel="icon" type="image/png" href="{{ restaurant.favicon_url or '/static/favicon.ico' }}">
+<link rel="apple-touch-icon" href="{{ restaurant.favicon_url or '/static/favicon.jpg' }}?v={{ app_version }}">
+<link rel="icon" type="image/png" href="{{ restaurant.favicon_url or '/static/favicon.ico' }}?v={{ app_version }}">
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://code.iconify.design" crossorigin>
 <link rel="dns-prefetch" href="https://images.unsplash.com">
 
 <!-- Fonts — display=swap for no FOUT -->
 <link href="https://fonts.googleapis.com/css2?family=Forum&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/theme.css">
+<link rel="stylesheet" href="/static/theme.css?v={{ app_version }}">
 <script src="https://cdn.tailwindcss.com" defer></script>
 <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js" defer></script>
 

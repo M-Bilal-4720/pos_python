@@ -43,15 +43,22 @@ function closePromoPopup(){
       <div class="font-forum text-lg tracking-wide uppercase text-white">{{ restaurant.name }}</div>
     </div>
     {% if table %}
-    <div class="text-xs px-3 py-1.5 rounded-full bg-accent/10 border border-accent/30 text-accent font-medium">
-      <iconify-icon icon="solar:users-group-rounded-linear"></iconify-icon> Table {{ table }}
+    <div class="flex items-center gap-2">
+      <div class="text-xs px-3 py-1.5 rounded-full bg-accent/10 border border-accent/30 text-accent font-medium flex items-center gap-1.5">
+        <iconify-icon icon="solar:users-group-rounded-linear"></iconify-icon> Table {{ table }}
+      </div>
+      <button onclick="openCallModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 text-xs font-semibold transition cursor-pointer">
+        <iconify-icon icon="solar:bell-bold" class="text-amber-400"></iconify-icon>
+        <span class="hidden sm:inline">Call Staff</span>
+        <span class="sm:hidden">Staff</span>
+      </button>
     </div>
     {% endif %}
     {% if session.get("customer_id") %}
       <a href="/customer/dashboard" class="hidden sm:flex items-center gap-1.5 text-neutral-400 hover:text-accent text-xs transition">
         <iconify-icon icon="solar:user-circle-linear"></iconify-icon> My Orders
       </a>
-      {% else %}
+      {% elif not table %}
       <a href="/customer/login" class="hidden sm:block text-neutral-400 hover:text-accent text-xs transition">Login</a>
       {% endif %}
       <button onclick="openCart()" class="relative bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2">
@@ -67,7 +74,21 @@ function closePromoPopup(){
   <h1 class="font-forum text-4xl md:text-6xl text-white uppercase tracking-wide">{{ restaurant.name }}</h1>
   <p class="mt-3 text-neutral-400">{{ restaurant.tagline }}</p>
   {% if table %}
-  <p class="mt-2 text-sm text-neutral-500">Ordering for <span class="text-accent">Table {{ table }}</span> — your order goes straight to the kitchen.</p>
+    {% if qr_enabled %}
+    <p class="mt-2 text-sm text-neutral-400">Ordering for <span class="text-accent font-semibold">Table {{ table }}</span> — items will be prepared and served to your table.</p>
+    {% else %}
+    <div class="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs max-w-md mx-auto">
+      <div class="font-semibold text-sm mb-1 flex items-center justify-center gap-1.5 text-red-400">
+        <iconify-icon icon="solar:danger-triangle-bold"></iconify-icon> QR Ordering Disabled for Table {{ table }}
+      </div>
+      QR self-ordering has been temporarily turned off for this table by staff. You can still browse our menu, or call our staff to take your order in person.
+      <div class="mt-2.5">
+        <button onclick="openCallModal()" class="px-3.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-medium hover:bg-amber-500/30 transition">
+          🔔 Call Staff to Order
+        </button>
+      </div>
+    </div>
+    {% endif %}
   {% else %}
   <p class="mt-2 text-sm text-neutral-500">Order online for pickup or delivery.</p>
   {% endif %}
@@ -134,6 +155,117 @@ function closePromoPopup(){
   {% endif %}
   {% endfor %}
 </main>
+
+<!-- Call Staff Modal -->
+<div id="call-overlay" onclick="closeCallModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9998;"></div>
+<div id="call-modal" class="hidden" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:92%;max-width:480px;max-height:88vh;overflow-y:auto;z-index:9999;background:#141414;border:1px solid rgba(255,255,255,0.12);border-radius:20px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.8);">
+  
+  <div class="p-5 border-b border-white/10 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center text-lg">
+        <iconify-icon icon="solar:bell-bold"></iconify-icon>
+      </div>
+      <div>
+        <h3 class="font-forum text-lg text-white">Call Staff</h3>
+        <p class="text-neutral-400 text-xs">Table {{ table if table else 'Service' }}</p>
+      </div>
+    </div>
+    <button onclick="closeCallModal()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition">
+      <iconify-icon icon="solar:close-circle-linear" width="20"></iconify-icon>
+    </button>
+  </div>
+
+  <div class="p-5 space-y-4">
+    <div>
+      <label class="text-xs text-neutral-400 uppercase tracking-wider font-semibold">What can we help you with?</label>
+      <div class="grid grid-cols-3 gap-2 mt-2.5" id="call-type-grid">
+        <button type="button" onclick="selectCallType('water')" class="call-type-btn p-3 rounded-xl bg-[#0a0a0a] border-2 border-amber-500 bg-amber-500/10 flex flex-col items-center gap-1.5 transition text-center" data-type="water">
+          <span class="text-2xl">💧</span>
+          <span class="text-xs font-medium text-neutral-200">Water</span>
+        </button>
+        <button type="button" onclick="selectCallType('cutlery')" class="call-type-btn p-3 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-amber-500/50 flex flex-col items-center gap-1.5 transition text-center" data-type="cutlery">
+          <span class="text-2xl">🍽️</span>
+          <span class="text-xs font-medium text-neutral-200">Cutlery</span>
+        </button>
+        <button type="button" onclick="selectCallType('tissue')" class="call-type-btn p-3 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-amber-500/50 flex flex-col items-center gap-1.5 transition text-center" data-type="tissue">
+          <span class="text-2xl">🧻</span>
+          <span class="text-xs font-medium text-neutral-200">Tissue</span>
+        </button>
+        <button type="button" onclick="selectCallType('assistance')" class="call-type-btn p-3 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-amber-500/50 flex flex-col items-center gap-1.5 transition text-center" data-type="assistance">
+          <span class="text-2xl">👨‍🍳</span>
+          <span class="text-xs font-medium text-neutral-200">Assistance</span>
+        </button>
+        <button type="button" onclick="selectCallType('bill')" class="call-type-btn p-3 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-amber-500/50 flex flex-col items-center gap-1.5 transition text-center" data-type="bill">
+          <span class="text-2xl">💳</span>
+          <span class="text-xs font-medium text-neutral-200">Bill / Settle</span>
+        </button>
+        <button type="button" onclick="selectCallType('other')" class="call-type-btn p-3 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-amber-500/50 flex flex-col items-center gap-1.5 transition text-center" data-type="other">
+          <span class="text-2xl">🪑</span>
+          <span class="text-xs font-medium text-neutral-200">Other</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Special Water Choice Sub-Panel (shows when 'water' is selected) -->
+    <div id="water-choice-panel" class="bg-sky-950/20 border border-sky-500/30 rounded-xl p-3.5 space-y-3">
+      <div class="flex items-center gap-2 text-xs font-semibold text-sky-400">
+        <iconify-icon icon="solar:waterdrops-bold" class="text-base"></iconify-icon>
+        Water Preference
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div onclick="setWaterMode('request')" id="water-opt-request" class="p-3 rounded-lg border-2 border-accent bg-accent/10 cursor-pointer transition">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">💧</span>
+            <span class="text-xs font-bold text-white">Free Tap / Ice Water</span>
+          </div>
+          <p class="text-[11px] text-neutral-400 mt-1 leading-snug">Complimentary glass of water brought by staff.</p>
+        </div>
+        <div onclick="setWaterMode('order')" id="water-opt-order" class="p-3 rounded-lg border border-white/10 bg-[#0a0a0a] cursor-pointer transition hover:border-accent/40">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-white">🛒 Bottled Water</span>
+            <span class="text-xs font-bold text-accent">RM{{ "%.2f"|format(water_item.price if water_item else 2.0) }}</span>
+          </div>
+          <p class="text-[11px] text-neutral-400 mt-1 leading-snug">{{ water_item.name if water_item else 'Air Mineral' }} (Cold bottled)</p>
+          <div class="mt-2 flex items-center justify-between">
+            <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+              <button type="button" onclick="changeWaterQty(-1)" class="w-6 h-6 rounded-full bg-white/10 text-white text-xs flex items-center justify-center">-</button>
+              <span id="water-qty" class="text-xs font-bold text-white w-4 text-center">1</span>
+              <button type="button" onclick="changeWaterQty(1)" class="w-6 h-6 rounded-full bg-white/10 text-white text-xs flex items-center justify-center">+</button>
+            </div>
+            <button type="button" onclick="event.stopPropagation(); addWaterToCart();" class="px-2.5 py-1 rounded-md bg-accent hover:opacity-90 text-white text-[11px] font-semibold transition">
+              + Add to Cart
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes field -->
+    <div>
+      <label class="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Special Instructions (Optional)</label>
+      <textarea id="call-notes" rows="2" placeholder="e.g. 2 cold glasses of water, extra spoons, lime..."
+        class="mt-1.5 w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-3 text-xs text-white focus:border-accent outline-none"></textarea>
+    </div>
+
+    <button id="btn-submit-call" onclick="submitCallRequest()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-medium py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-600/20">
+      <iconify-icon icon="solar:bell-bold"></iconify-icon>
+      <span id="btn-submit-call-text">Send Request to Staff</span>
+    </button>
+
+    <!-- Recent Requests Status Tracking -->
+    <div id="table-requests-status-wrap" class="pt-3 border-t border-white/10">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Table Status</span>
+        <button type="button" onclick="loadTableRequests()" class="text-[11px] text-neutral-500 hover:text-white flex items-center gap-1">
+          <iconify-icon icon="solar:refresh-linear"></iconify-icon> Refresh
+        </button>
+      </div>
+      <div id="table-requests-list" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+        <p class="text-xs text-neutral-500 italic py-1 text-center">No active requests</p>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Item Options Modal -->
 <div id="item-overlay" onclick="closeItemModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;"></div>
@@ -224,80 +356,91 @@ function closePromoPopup(){
       <button onclick="showCheckoutForm()" id="checkout-btn" class="mt-4 w-full bg-accent hover:shadow-[0_0_20px_rgba(198,90,30,0.4)] transition duration-300 text-white py-3 rounded-xl font-medium">Checkout</button>
     </div>
     <div id="cart-step-2" class="hidden space-y-3">
-      {% if not table %}
+      {% if table %}
+      <div class="bg-accent/10 border border-accent/30 rounded-xl p-3 flex items-center justify-between text-xs">
+        <span class="flex items-center gap-1.5 font-medium text-white">
+          <iconify-icon icon="solar:users-group-rounded-linear" class="text-accent text-sm"></iconify-icon>
+          Dine-in at <span class="text-accent font-bold">Table {{ table }}</span>
+        </span>
+        <span class="text-[10px] text-accent bg-accent/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">QR Self Order</span>
+      </div>
+      <input id="cust-name" value="{{ customer.name if customer else '' }}" placeholder="Your name (optional, defaults to Table {{ table }} Guest)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none text-white">
+      <input id="cust-phone" value="{{ customer.phone if customer else '' }}" placeholder="Phone number (optional for dine-in)" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none text-white">
+      {% else %}
       <div class="grid grid-cols-2 gap-2">
         <button type="button" onclick="setOrderType('pickup')" class="order-type-btn bg-[#0a0a0a] border border-white/10 rounded-xl py-2 text-sm">Pickup</button>
         <button type="button" onclick="setOrderType('delivery')" class="order-type-btn bg-[#0a0a0a] border border-white/10 rounded-xl py-2 text-sm">Delivery</button>
       </div>
-      {% endif %}
-      <input id="cust-name" value="{{ customer.name if customer else '' }}" placeholder="Your name" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none">
-      <input id="cust-phone" value="{{ customer.phone if customer else '' }}" placeholder="Phone number" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none">
+      <input id="cust-name" value="{{ customer.name if customer else '' }}" placeholder="Your name" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none text-white">
+      <input id="cust-phone" value="{{ customer.phone if customer else '' }}" placeholder="Phone number" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none text-white">
       <div id="delivery-address-wrap" class="hidden">
-        <input id="cust-address" value="{{ customer.address if customer else '' }}" placeholder="Delivery address" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none">
+        <input id="cust-address" value="{{ customer.address if customer else '' }}" placeholder="Delivery address" class="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent outline-none text-white">
         <p class="text-[11px] text-neutral-600 mt-1 px-1">Required for delivery.</p>
       </div>
+      {% endif %}
       <div>
         <label class="text-xs text-neutral-500 uppercase tracking-wide">Payment</label>
         <div class="grid grid-cols-2 gap-2 mt-2">
-          <!-- Online Payment (HitPay-powered, kept low-key rather than 3rd-party branded) -->
-          <button type="button" onclick="setPayment('hitpay')" class="pay-btn col-span-2" style="background:#0d1f1240;border:2px solid #21c55d40;border-radius:14px;padding:14px 16px;cursor:pointer;text-align:left;width:100%;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-              <iconify-icon icon="solar:card-linear" style="color:#21c55d;font-size:20px;"></iconify-icon>
-              <span style="font-size:13px;font-weight:600;color:#fff;">Pay Online</span>
-              <span style="margin-left:auto;font-size:10px;color:#21c55d;background:#21c55d15;padding:2px 8px;border-radius:20px;border:0.5px solid #21c55d40;">Recommended</span>
+        <div class="grid grid-cols-1 gap-2.5 mt-2">
+          <!-- Option A: Pay Online (HitPay) -->
+          <button type="button" onclick="setPayment('hitpay')" id="pay-btn-hitpay" class="pay-btn" style="background:#0d1f1260;border:2px solid #22c55e;border-radius:14px;padding:14px 16px;cursor:pointer;text-align:left;width:100%;transition:all 0.2s;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="background:#22c55e20;color:#22c55e;border:1px solid #22c55e40;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.5px;">OPTION A</span>
+              <span style="font-size:14px;font-weight:700;color:#fff;">Pay Online (HitPay)</span>
+              <span style="margin-left:auto;font-size:10px;color:#22c55e;background:#22c55e15;padding:2px 8px;border-radius:20px;border:0.5px solid #22c55e40;font-weight:600;">Recommended</span>
             </div>
+            <p style="font-size:11px;color:#9ca3af;margin-bottom:8px;">Instant online payment via Touch 'n Go, DuitNow QR, FPX Online Banking, or Credit/Debit Card.</p>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               {% if settings.logo_tng %}
-              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:8px;padding:5px 10px;">
-                <img src="{{ settings.logo_tng }}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;">
-                <span style="font-size:11px;font-weight:500;color:#fff;">Touch n Go</span>
+              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:6px;padding:3px 8px;">
+                <img src="{{ settings.logo_tng }}" style="width:18px;height:18px;object-fit:contain;border-radius:3px;">
+                <span style="font-size:10px;font-weight:600;color:#fff;">Touch 'n Go</span>
               </div>
               {% else %}
-              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:8px;padding:5px 10px;">
-                <svg width="18" height="18" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#00B4D8"/><text x="20" y="26" text-anchor="middle" font-family="Arial" font-size="11" font-weight="900" fill="white">TnG</text></svg>
-                <span style="font-size:11px;font-weight:500;color:#fff;">Touch n Go</span>
+              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:6px;padding:3px 8px;">
+                <svg width="16" height="16" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#00B4D8"/><text x="20" y="26" text-anchor="middle" font-family="Arial" font-size="11" font-weight="900" fill="white">TnG</text></svg>
+                <span style="font-size:10px;font-weight:600;color:#fff;">Touch 'n Go</span>
               </div>
               {% endif %}
               {% if settings.logo_duitnow %}
-              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:8px;padding:5px 10px;">
-                <img src="{{ settings.logo_duitnow }}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;">
-                <span style="font-size:11px;font-weight:500;color:#fff;">DuitNow</span>
+              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:6px;padding:3px 8px;">
+                <img src="{{ settings.logo_duitnow }}" style="width:18px;height:18px;object-fit:contain;border-radius:3px;">
+                <span style="font-size:10px;font-weight:600;color:#fff;">DuitNow</span>
               </div>
               {% else %}
-              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:8px;padding:5px 10px;">
-                <svg width="18" height="18" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#e5007d"/><text x="20" y="26" text-anchor="middle" font-family="Arial" font-size="9" font-weight="900" fill="white">DuitNow</text></svg>
-                <span style="font-size:11px;font-weight:500;color:#fff;">DuitNow</span>
+              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:6px;padding:3px 8px;">
+                <svg width="16" height="16" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#e5007d"/><text x="20" y="26" text-anchor="middle" font-family="Arial" font-size="9" font-weight="900" fill="white">DuitNow</text></svg>
+                <span style="font-size:10px;font-weight:600;color:#fff;">DuitNow</span>
               </div>
               {% endif %}
-              {% if settings.logo_fpx %}
-              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:8px;padding:5px 10px;">
-                <img src="{{ settings.logo_fpx }}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;">
-                <span style="font-size:11px;font-weight:500;color:#fff;">FPX</span>
+              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:6px;padding:3px 8px;">
+                <svg width="16" height="16" viewBox="0 0 40 40"><rect width="40" height="40" rx="6" fill="#003d79"/><text x="20" y="26" text-anchor="middle" font-family="Arial" font-size="11" font-weight="900" fill="white">FPX</text></svg>
+                <span style="font-size:10px;font-weight:600;color:#fff;">FPX</span>
               </div>
-              {% else %}
-              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:8px;padding:5px 10px;">
-                <svg width="18" height="18" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#003d79"/><text x="20" y="26" text-anchor="middle" font-family="Arial" font-size="12" font-weight="900" fill="white">FPX</text></svg>
-                <span style="font-size:11px;font-weight:500;color:#fff;">FPX</span>
+              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:6px;padding:3px 8px;">
+                <iconify-icon icon="solar:card-bold" style="color:#f59e0b;font-size:16px;"></iconify-icon>
+                <span style="font-size:10px;font-weight:600;color:#fff;">Card</span>
               </div>
-              {% endif %}
-              {% if settings.logo_card %}
-              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:8px;padding:5px 10px;">
-                <img src="{{ settings.logo_card }}" style="width:22px;height:22px;object-fit:contain;border-radius:4px;">
-                <span style="font-size:11px;font-weight:500;color:#fff;">Card</span>
-              </div>
-              {% else %}
-              <div style="display:flex;align-items:center;gap:5px;background:#111;border:0.5px solid #333;border-radius:8px;padding:5px 10px;">
-                <svg width="18" height="18" viewBox="0 0 40 40"><rect width="40" height="40" rx="6" fill="#1a1a2e"/><rect x="5" y="12" width="30" height="4" rx="2" fill="#f0c040"/><rect x="5" y="22" width="12" height="3" rx="1.5" fill="#888"/><rect x="25" y="22" width="10" height="3" rx="1.5" fill="#888"/></svg>
-                <span style="font-size:11px;font-weight:500;color:#fff;">Card</span>
-              </div>
-              {% endif %}
             </div>
-            <div style="font-size:10px;color:#4b5563;margin-top:8px;">Secured payment, powered by HitPay</div>
+            <div style="font-size:10px;color:#6b7280;margin-top:6px;">Secured payment, verified by HitPay Webhook</div>
           </button>
-          <button type="button" onclick="setPayment('cash')" class="pay-btn" style="background:#111;border:0.5px solid #333;border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="12" rx="2" fill="#4caf50" opacity="0.2" stroke="#4caf50" stroke-width="1.5"/><circle cx="12" cy="12" r="3" fill="#4caf50"/><circle cx="5" cy="12" r="1.5" fill="#4caf50"/><circle cx="19" cy="12" r="1.5" fill="#4caf50"/></svg>
-            <div style="text-align:left;"><div style="font-size:12px;font-weight:500;color:#fff;">Cash</div><div style="font-size:10px;color:#6b7280;">On delivery</div></div>
+
+          <!-- Option B: Pay at Counter -->
+          <button type="button" onclick="setPayment('counter')" id="pay-btn-counter" class="pay-btn" style="background:#111;border:1.5px solid #333;border-radius:14px;padding:14px 16px;cursor:pointer;text-align:left;width:100%;transition:all 0.2s;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="background:#f9731620;color:#f97316;border:1px solid #f9731640;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;letter-spacing:0.5px;">OPTION B</span>
+              <span style="font-size:14px;font-weight:700;color:#fff;">{% if table %}Pay at Counter{% else %}Cash on Delivery / Pickup{% endif %}</span>
+              <span style="margin-left:auto;font-size:10px;color:#f97316;background:#f9731615;padding:2px 8px;border-radius:20px;border:0.5px solid #f9731640;font-weight:600;">Counter Collection</span>
+            </div>
+            <p style="font-size:11px;color:#9ca3af;">
+              {% if table %}
+                Order is sent immediately to the kitchen. You can settle the bill at the cashier counter after your meal.
+              {% else %}
+                Pay with cash upon delivery or when picking up your order.
+              {% endif %}
+            </p>
           </button>
+        </div>
 
         </div>
       </div>
@@ -327,6 +470,27 @@ function closePromoPopup(){
   </div>
 </div>
 
+{% if table %}
+<!-- Mobile Floating Call Staff Button -->
+<div class="fixed bottom-5 left-4 z-40 sm:hidden">
+  <button onclick="openCallModal()" class="flex items-center gap-2 px-4 py-3 rounded-full bg-amber-600 text-white font-semibold shadow-2xl hover:bg-amber-500 transition active:scale-95 text-xs">
+    <iconify-icon icon="solar:bell-bold" class="text-base"></iconify-icon>
+    <span>Call Staff</span>
+    <span id="fab-call-badge" class="hidden w-2 h-2 rounded-full bg-white animate-ping"></span>
+  </button>
+</div>
+
+<!-- Floating Active Request Toast/Pill -->
+<div id="active-call-pill" class="hidden fixed top-20 right-4 z-40 bg-[#161616]/95 backdrop-blur border border-amber-500/40 text-white px-3.5 py-2 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs">
+  <span class="relative flex h-2 w-2">
+    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+  </span>
+  <span id="active-call-pill-text" class="font-medium text-amber-300">Staff Notified ✓</span>
+  <button onclick="openCallModal()" class="text-accent underline text-[11px] ml-1">Details</button>
+</div>
+{% endif %}
+
 <footer class="relative bg-black py-10 mt-10 overflow-hidden">
   <div class="absolute inset-0 opacity-[0.03]" style="background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><filter id=%22n%22><feTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22 stitchTiles=%22stitch%22/></filter><rect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/></svg>')"></div>
   <div class="relative max-w-5xl mx-auto px-4 text-center text-sm text-neutral-500">
@@ -341,9 +505,12 @@ function closePromoPopup(){
 {% block scripts %}
 <script>
 const TABLE = {{ table|tojson if table else 'null' }};
+const TABLE_TOKEN = {{ table_token|tojson if table_token else '""' }};
+const QR_ENABLED = {{ 'true' if qr_enabled else 'false' }};
+const WATER_ITEM = {{ water_item|tojson if water_item else 'null' }};
 let cart = JSON.parse(sessionStorage.getItem('mai_cart') || '[]');
 let orderType = TABLE ? 'dine_in' : 'pickup';
-let paymentMethod = 'cash';
+let paymentMethod = 'hitpay';
 
 
 // Menu search + sort
@@ -543,48 +710,83 @@ function setOrderType(t){
 }
 function setPayment(p){
   paymentMethod = p;
-  document.querySelectorAll('.pay-btn').forEach(b=>{
-    b.classList.remove('border-accent','text-accent','border-[#00b4d8]','text-[#00b4d8]');
-  });
-  event.target.classList.add(p==='tng' ? 'border-[#00b4d8]' : 'border-accent',
-                              p==='tng' ? 'text-[#00b4d8]'  : 'text-accent');
+  const btnHitpay = document.getElementById('pay-btn-hitpay');
+  const btnCounter = document.getElementById('pay-btn-counter');
+  if(btnHitpay){
+    if(p === 'hitpay'){
+      btnHitpay.style.border = '2px solid #22c55e';
+      btnHitpay.style.background = '#0d1f1280';
+    } else {
+      btnHitpay.style.border = '1.5px solid #333';
+      btnHitpay.style.background = '#111';
+    }
+  }
+  if(btnCounter){
+    if(p === 'counter' || p === 'cash'){
+      btnCounter.style.border = '2px solid #f97316';
+      btnCounter.style.background = '#1c130d';
+    } else {
+      btnCounter.style.border = '1.5px solid #333';
+      btnCounter.style.background = '#111';
+    }
+  }
   // Show/hide TnG QR section
   const tngBlock = document.getElementById('tng-qr-step');
-  if(p === 'tng'){
-    tngBlock.classList.remove('hidden');
-    // Update amount display in TnG QR step
-    const total = cart.reduce((a,c)=>a+c.price*c.qty,0);
-    const tax   = total * 0.06;
-    const tngEl=document.getElementById('tng-amount'); if(tngEl) tngEl.textContent = 'RM ' + (total+tax).toFixed(2);
-  } else {
-    tngBlock.classList.add('hidden');
+  if(tngBlock){
+    if(p === 'tng'){
+      tngBlock.classList.remove('hidden');
+      const total = cart.reduce((a,c)=>a+c.price*c.qty,0);
+      const tax   = total * 0.06;
+      const tngEl=document.getElementById('tng-amount'); if(tngEl) tngEl.textContent = 'RM ' + (total+tax).toFixed(2);
+    } else {
+      tngBlock.classList.add('hidden');
+    }
   }
 }
 
 async function placeOrder(){
-  const name  = document.getElementById('cust-name').value.trim();
-  const phone = document.getElementById('cust-phone').value.trim();
-  if (!name || !phone) { alert('Please enter your name and phone number'); return; }
+  if(TABLE && !QR_ENABLED){
+    alert('QR ordering is currently disabled for this table. Please call staff to order.');
+    return;
+  }
+  let name  = (document.getElementById('cust-name').value || '').trim();
+  let phone = (document.getElementById('cust-phone').value || '').trim();
+
+  if(TABLE){
+    if(!name) name = 'Table ' + TABLE + ' Guest';
+    // phone is optional for table guests
+  } else {
+    if(!name || !phone){
+      alert('Please enter your name and phone number');
+      return;
+    }
+  }
 
   const effectiveType = TABLE ? 'dine_in' : orderType;
-  const address = (document.getElementById('cust-address').value||'').trim();
-  if(effectiveType === 'delivery' && !address){ alert('Please enter your delivery address'); return; }
+  const address = (document.getElementById('cust-address')?.value || '').trim();
+  if(effectiveType === 'delivery' && !address){
+    alert('Please enter your delivery address');
+    return;
+  }
 
   // TnG manual QR: require transaction ID
   if(paymentMethod === 'tng'){
-    const txn = (document.getElementById('tng-txn-id').value||'').trim();
+    const txn = (document.getElementById('tng-txn-id').value || '').trim();
     if(!txn){ alert('Please enter your TnG Transaction ID after completing payment.'); return; }
   }
 
+  const btn = document.getElementById('place-order-btn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Processing Order...'; }
+
   // HitPay: create payment request → redirect to HitPay checkout
   if(paymentMethod === 'hitpay'){
-    const btn = document.getElementById('place-order-btn');
-    if(btn){ try{btn.disabled=true; btn.textContent='Connecting to HitPay…';}catch(e){} }
+    if(btn){ try{btn.textContent='Connecting to HitPay…';}catch(e){} }
     try {
       const payload = {
         cart: cart.map(c=>({id:c.id,size:c.size,qty:c.qty,addons:c.addons||[],notes:c.notes||''})),
         order_type: effectiveType,
         table_number: TABLE,
+        table_token: TABLE_TOKEN,
         customer_name: name,
         customer_phone: phone,
         delivery_address: address,
@@ -592,14 +794,17 @@ async function placeOrder(){
       };
       const res  = await fetch('/api/hitpay/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const data = await res.json();
-      if(data.error){ alert('Payment error: '+data.error); if(btn){btn.disabled=false;btn.textContent='Place Order';} return; }
+      if(data.error){
+        alert('Payment error: ' + data.error);
+        if(btn){btn.disabled=false;btn.textContent='Place Order';}
+        return;
+      }
       cart=[]; saveCart();
-      // Redirect to HitPay hosted checkout
       window.location.href = data.checkout_url || data.hitpay_url;
     } catch(e){
       alert('Network error: ' + e.message);
       console.error('HitPay error:', e);
-      if(btn){btn.disabled=false;}
+      if(btn){btn.disabled=false; btn.textContent='Place Order';}
     }
     return;
   }
@@ -610,19 +815,236 @@ async function placeOrder(){
     cart: cart.map(c=>({id:c.id,size:c.size,qty:c.qty,addons:c.addons||[],notes:c.notes||''})),
     order_type: effectiveType,
     table_number: TABLE,
+    table_token: TABLE_TOKEN,
     customer_name: name,
     customer_phone: phone,
     delivery_address: address,
     payment_method: paymentMethod,
     tng_txn_id: tngTxnId,
   };
-  const res  = await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const data = await res.json();
-  if(data.error){ alert(data.error); return; }
-  cart=[]; saveCart();
-  window.location.href = '/customer/track/' + data.order_no;
+  try {
+    const res  = await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data = await res.json();
+    if(data.error){
+      alert(data.error);
+      if(btn){btn.disabled=false; btn.textContent='Place Order';}
+      return;
+    }
+    cart=[]; saveCart();
+    window.location.href = '/customer/track/' + data.order_no;
+  } catch(e){
+    alert('Error submitting order: ' + e.message);
+    if(btn){btn.disabled=false; btn.textContent='Place Order';}
+  }
+}
+
+// ---- Call Staff Modal & Status Tracking ----
+let selectedCallType = 'water';
+let waterMode = 'request';
+let waterQty = 1;
+
+function openCallModal(){
+  document.getElementById('call-overlay').style.display = 'block';
+  document.getElementById('call-modal').style.display = 'block';
+  document.getElementById('call-modal').classList.remove('hidden');
+  selectCallType('water');
+  loadTableRequests();
+}
+
+function closeCallModal(){
+  document.getElementById('call-overlay').style.display = 'none';
+  document.getElementById('call-modal').style.display = 'none';
+  document.getElementById('call-modal').classList.add('hidden');
+}
+
+function selectCallType(t){
+  selectedCallType = t;
+  document.querySelectorAll('.call-type-btn').forEach(b => {
+    b.classList.remove('border-2', 'border-amber-500', 'bg-amber-500/10');
+  });
+  const activeBtn = document.querySelector(`.call-type-btn[data-type="${t}"]`);
+  if(activeBtn){
+    activeBtn.classList.add('border-2', 'border-amber-500', 'bg-amber-500/10');
+  }
+  
+  const waterPanel = document.getElementById('water-choice-panel');
+  if(t === 'water'){
+    waterPanel.classList.remove('hidden');
+  } else {
+    waterPanel.classList.add('hidden');
+  }
+}
+
+function setWaterMode(m){
+  waterMode = m;
+  const optReq = document.getElementById('water-opt-request');
+  const optOrd = document.getElementById('water-opt-order');
+  if(m === 'request'){
+    optReq.className = 'p-3 rounded-lg border-2 border-accent bg-accent/10 cursor-pointer transition';
+    optOrd.className = 'p-3 rounded-lg border border-white/10 bg-[#0a0a0a] cursor-pointer transition hover:border-accent/40';
+  } else {
+    optReq.className = 'p-3 rounded-lg border border-white/10 bg-[#0a0a0a] cursor-pointer transition hover:border-accent/40';
+    optOrd.className = 'p-3 rounded-lg border-2 border-accent bg-accent/10 cursor-pointer transition';
+  }
+}
+
+function changeWaterQty(delta){
+  waterQty = Math.max(1, waterQty + delta);
+  const el = document.getElementById('water-qty');
+  if(el) el.textContent = waterQty;
+}
+
+function addWaterToCart(){
+  if(!WATER_ITEM){
+    alert('Water item not found');
+    return;
+  }
+  const existing = cart.find(c => c.id === WATER_ITEM.id && c.size === 'full' && (!c.addons || c.addons.length === 0) && !c.notes);
+  if(existing){
+    existing.qty += waterQty;
+  } else {
+    cart.push({
+      id: WATER_ITEM.id,
+      name: WATER_ITEM.name,
+      size: 'full',
+      price: WATER_ITEM.price,
+      addons: [],
+      addonKey: '',
+      notes: '',
+      qty: waterQty
+    });
+  }
+  saveCart();
+  showToast(`${waterQty}× ${WATER_ITEM.name} added to cart!`);
+  closeCallModal();
+  openCart();
+}
+
+async function submitCallRequest(){
+  if(!TABLE && !TABLE_TOKEN){
+    alert('Calling staff is only available for table dine-in sessions.');
+    return;
+  }
+  
+  const notes = (document.getElementById('call-notes').value || '').trim();
+  const btn = document.getElementById('btn-submit-call');
+  const btnText = document.getElementById('btn-submit-call-text');
+  
+  if(btn){ btn.disabled = true; btnText.textContent = 'Calling Staff...'; }
+  
+  try {
+    const res = await fetch('/api/table/request', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        table_token: TABLE_TOKEN,
+        table_number: TABLE,
+        request_type: selectedCallType,
+        message: notes
+      })
+    });
+    const data = await res.json();
+    if(data.error){
+      alert(data.error);
+    } else {
+      document.getElementById('call-notes').value = '';
+      showToast('Staff has been notified. We will be with you shortly!');
+      loadTableRequests();
+    }
+  } catch(e){
+    alert('Failed to send request: ' + e.message);
+  } finally {
+    if(btn){ btn.disabled = false; btnText.textContent = 'Send Request to Staff'; }
+  }
+}
+
+async function loadTableRequests(){
+  if(!TABLE_TOKEN) return;
+  try {
+    const res = await fetch('/api/table/requests/' + encodeURIComponent(TABLE_TOKEN));
+    if(!res.ok) return;
+    const list = await res.json();
+    const wrap = document.getElementById('table-requests-list');
+    const pill = document.getElementById('active-call-pill');
+    const pillText = document.getElementById('active-call-pill-text');
+    const fabBadge = document.getElementById('fab-call-badge');
+
+    if(!list || list.length === 0){
+      if(wrap) wrap.innerHTML = '<p class="text-xs text-neutral-500 italic py-1 text-center">No active requests</p>';
+      if(pill) pill.classList.add('hidden');
+      if(fabBadge) fabBadge.classList.add('hidden');
+      return;
+    }
+
+    const activeReq = list.find(r => r.status === 'pending' || r.status === 'acknowledged');
+    if(activeReq){
+      if(pill){
+        pill.classList.remove('hidden');
+        if(activeReq.status === 'acknowledged'){
+          pillText.textContent = 'Staff on the way 🏃';
+        } else {
+          pillText.textContent = 'Staff Notified ✓';
+        }
+      }
+      if(fabBadge) fabBadge.classList.remove('hidden');
+    } else {
+      if(pill) pill.classList.add('hidden');
+      if(fabBadge) fabBadge.classList.add('hidden');
+    }
+
+    if(wrap){
+      const typeIcons = {
+        water: '💧 Water',
+        cutlery: '🍽️ Cutlery',
+        tissue: '🧻 Tissue',
+        assistance: '👨‍🍳 Assistance',
+        bill: '💳 Bill / Settle',
+        other: '🪑 Other'
+      };
+      const statusBadges = {
+        pending: '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 font-medium">⏳ Sent</span>',
+        acknowledged: '<span class="px-2 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 font-medium animate-pulse">🏃 On the way</span>',
+        completed: '<span class="px-2 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 border border-green-500/30 font-medium">✓ Done</span>',
+        cancelled: '<span class="px-2 py-0.5 rounded text-[10px] bg-neutral-700 text-neutral-400 text-[10px]">Cancelled</span>'
+      };
+
+      wrap.innerHTML = list.map(r => `
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-[#0a0a0a] border border-white/5 text-xs">
+          <div>
+            <div class="font-medium text-white flex items-center gap-1.5">
+              ${typeIcons[r.request_type] || '🔔 '+r.request_type}
+              ${r.message ? `<span class="text-[11px] text-neutral-400 font-normal truncate max-w-[150px]">"${r.message}"</span>` : ''}
+            </div>
+            <div class="text-[10px] text-neutral-500 mt-0.5">${r.time_ago || 'Recent'}</div>
+          </div>
+          <div>${statusBadges[r.status] || r.status}</div>
+        </div>
+      `).join('');
+    }
+  } catch(e){
+    console.error('Error fetching table requests:', e);
+  }
+}
+
+function showToast(msg){
+  let t = document.getElementById('app-toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'app-toast';
+    t.style = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:600;z-index:99999;box-shadow:0 10px 25px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;transition:opacity 0.3s;';
+    document.body.appendChild(t);
+  }
+  t.innerHTML = `<iconify-icon icon="solar:check-circle-bold"></iconify-icon> ${msg}`;
+  t.style.opacity = '1';
+  t.style.display = 'flex';
+  setTimeout(()=>{ t.style.opacity = '0'; setTimeout(()=>t.style.display='none', 300); }, 3000);
 }
 
 renderCart();
+
+if(TABLE_TOKEN){
+  loadTableRequests();
+  setInterval(loadTableRequests, 6000);
+}
 </script>
 {% endblock %}
