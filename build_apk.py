@@ -108,3 +108,4 @@ def generate_signed_apk(output_path, app_name="ISB Water Ordering", package_name
 if __name__ == "__main__":
     out = os.path.join(os.path.dirname(__file__), "static", "downloads", "isb-water-panel.apk")
     generate_signed_apk(out)
+
