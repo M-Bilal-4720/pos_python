@@ -97,11 +97,13 @@ class Category(db.Model):
     sort_order = db.Column(db.Integer, default=0)
 
 class StaffUser(db.Model):
-    """Staff accounts for POS/Kitchen/Admin login."""
+    """Staff accounts for POS/Kitchen/Admin/Water login."""
     id           = db.Column(db.Integer, primary_key=True)
     username     = db.Column(db.String(40), unique=True, nullable=False)
+    name         = db.Column(db.String(80), default="")
     password_hash= db.Column(db.String(255), nullable=False)
-    role         = db.Column(db.String(20), default="staff")  # admin / manager / staff
+    role         = db.Column(db.String(20), default="staff")  # admin / manager / staff / kitchen / waiter / water
+    permissions  = db.Column(db.Text, default="")
     active       = db.Column(db.Boolean, default=True)
     created_at   = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     last_login   = db.Column(db.DateTime, nullable=True)
@@ -121,6 +123,96 @@ class StaffUser(db.Model):
             db.session.commit()
             return True
         return False
+
+    def has_water_permission(self):
+        if self.role in ("water", "admin", "manager"):
+            return True
+        if self.permissions:
+            try:
+                p = json.loads(self.permissions)
+                if isinstance(p, dict) and p.get("water_access", False):
+                    return True
+                if isinstance(p, list) and "water" in p:
+                    return True
+            except Exception:
+                if "water" in self.permissions.lower():
+                    return True
+        return False
+
+    def can_water_action(self, action_name):
+        if self.role in ("admin", "manager"):
+            return True
+        if not self.has_water_permission():
+            return False
+        if not self.permissions:
+            return True
+        try:
+            p = json.loads(self.permissions)
+            if isinstance(p, dict):
+                return bool(p.get(action_name, True))
+            if isinstance(p, list):
+                return action_name in p
+        except Exception:
+            pass
+        return True
+
+class WaterActivityLog(db.Model):
+    """Audit trail for all Water staff actions."""
+    id           = db.Column(db.Integer, primary_key=True)
+    user_id      = db.Column(db.Integer, nullable=True)
+    username     = db.Column(db.String(40), nullable=False)
+    user_name    = db.Column(db.String(80), default="")
+    action       = db.Column(db.String(40), nullable=False)  # create_order, add_items, open_item
+    order_id     = db.Column(db.Integer, nullable=True)
+    order_no     = db.Column(db.String(20), default="")
+    table_number = db.Column(db.Integer, nullable=True)
+    items_detail = db.Column(db.Text, default="")
+    total_amount = db.Column(db.Float, default=0.0)
+    created_at   = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "username": self.username,
+            "user_name": self.user_name or self.username,
+            "action": self.action,
+            "order_id": self.order_id,
+            "order_no": self.order_no,
+            "table_number": self.table_number,
+            "items_detail": self.items_detail,
+            "total_amount": self.total_amount,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at else "",
+            "time_str": self.created_at.strftime("%d %b %Y %I:%M %p") if self.created_at else "",
+        }
+
+class WaterAlert(db.Model):
+    """Real-time alerts for POS when Water staff perform important actions."""
+    id             = db.Column(db.Integer, primary_key=True)
+    alert_type     = db.Column(db.String(30), default="new_order")  # new_order, add_items
+    order_id       = db.Column(db.Integer, nullable=True)
+    order_no       = db.Column(db.String(20), default="")
+    table_number   = db.Column(db.Integer, nullable=True)
+    water_username = db.Column(db.String(40), default="")
+    water_name     = db.Column(db.String(80), default="")
+    items_summary  = db.Column(db.Text, default="")
+    status         = db.Column(db.String(20), default="unread")  # unread, acknowledged
+    created_at     = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "alert_type": self.alert_type,
+            "order_id": self.order_id,
+            "order_no": self.order_no,
+            "table_number": self.table_number,
+            "water_username": self.water_username,
+            "water_name": self.water_name or self.water_username,
+            "items_summary": self.items_summary,
+            "status": self.status,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at else "",
+            "time_str": self.created_at.strftime("%I:%M %p") if self.created_at else "",
+        }
 
 class IPWhitelist(db.Model):
     """Allowed IPs for admin/POS/kitchen — empty = allow all."""
@@ -465,6 +557,17 @@ def seed():
             u = StaffUser(username=uname, role=role, active=True)
             u.set_password(pwd)
             db.session.add(u)
+    # default water user
+    if not StaffUser.query.filter_by(username="water1").first():
+        u_water = StaffUser(
+            username="water1",
+            name="Ahmed",
+            role="water",
+            permissions=json.dumps({"can_create_order": True, "can_add_items": True, "can_open_item": True, "water_access": True}),
+            active=True
+        )
+        u_water.set_password("water123")
+        db.session.add(u_water)
     db.session.flush()
 
     # tables
@@ -1003,6 +1106,22 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def water_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("staff_id"):
+            return redirect(url_for("staff_login", next=request.path))
+        user = db.session.get(StaffUser, session["staff_id"])
+        if not user or not user.active:
+            session.clear()
+            return redirect(url_for("staff_login"))
+        if not user.has_water_permission():
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Water permission required"}), 403
+            return render_template("403.html", restaurant=get_restaurant_info(), reason="Water permission required"), 403
+        return f(*args, **kwargs)
+    return decorated
+
 def staff_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -1017,6 +1136,9 @@ def staff_required(f):
         # Kitchen staff can only access kitchen
         if user.role == "kitchen" and request.path not in ["/kitchen", "/logout"]:
             return redirect("/kitchen")
+        # Water staff can only access water panel
+        if user.role == "water" and request.path not in ["/water", "/staff/water", "/logout"] and not request.path.startswith("/api/"):
+            return redirect("/water")
         return f(*args, **kwargs)
     return decorated
 
@@ -1072,9 +1194,15 @@ def staff_login():
                 return redirect("/kitchen")
             elif user.role == "waiter":
                 return redirect("/tablet")
+            elif user.role == "water":
+                return redirect(next_url if (next_url and next_url != "/pos" and next_url.startswith("/")) else "/water")
             elif user.role in ("admin", "manager"):
-                return redirect(next_url if next_url.startswith("/") else "/admin")
+                if next_url and next_url.startswith("/"):
+                    return redirect(next_url)
+                return redirect("/admin")
             else:
+                if user.has_water_permission() and next_url == "/water":
+                    return redirect("/water")
                 return redirect(next_url if next_url.startswith("/") else "/pos")
         else:
             record_failed(ip)
@@ -2004,6 +2132,484 @@ def api_staff_create_order():
 
     return jsonify({"ok": True, "order": serialize_order(order)})
 
+# ════════════════════════════════════════════
+#  WATER ORDERING PANEL & APIS
+# ════════════════════════════════════════════
+
+def get_water_app_config():
+    s = get_settings()
+    restaurant = get_restaurant_info()
+    r_name = restaurant.get("name") or "Islamabad Restaurant & Cafe"
+    app_name = s.get("water_app_name") or f"{r_name} Water"
+    short_name = s.get("water_app_short_name") or "ISB Water"
+    version = s.get("water_app_version") or "1.0.0"
+    apk_filename = s.get("water_apk_filename") or "isb-water-panel-v1.0.0.apk"
+    apk_path = os.path.join(app.root_path, "static", "downloads", "isb-water-panel.apk")
+    file_exists = os.path.exists(apk_path)
+    file_size = os.path.getsize(apk_path) if file_exists else 0
+    return {
+        "app_name": app_name,
+        "water_app_name": app_name,
+        "app_short_name": short_name,
+        "water_app_short_name": short_name,
+        "app_version": version,
+        "water_app_version": version,
+        "app_package": "com.isb.water",
+        "app_logo_url": s.get("water_app_logo_url") or "/static/isb_qr_emblem.png",
+        "app_icon_url": s.get("water_app_icon_url") or "/static/isb_qr_emblem.png",
+        "theme_color": "#0284C7",
+        "bg_color": "#0B0C10",
+        "apk_filename": apk_filename,
+        "water_apk_filename": apk_filename,
+        "apk_download_url": "/api/water/download-apk",
+        "apk_file_exists": file_exists,
+        "apk_size_bytes": file_size,
+    }
+
+@app.route("/water/login", methods=["GET", "POST"])
+def water_login():
+    if session.get("staff_id"):
+        user = db.session.get(StaffUser, session["staff_id"])
+        if user and (user.role == "water" or user.has_water_permission()):
+            return redirect("/water")
+
+    ip = get_real_ip()
+    error = ""
+    app_config = get_water_app_config()
+
+    if is_rate_limited(ip):
+        error = "Too many attempts. Try again in 15 minutes."
+        return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error)
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip().lower()
+        password = request.form.get("password", "")
+        user = StaffUser.query.filter_by(username=username, active=True).first()
+        if user and user.check_password(password):
+            if user.role != "water" and not user.has_water_permission():
+                error = "Access denied: Account does not have Water Panel permissions."
+                return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error)
+
+            record_success(ip)
+            log_login(username, True, "/water")
+            session.permanent = True
+            session["staff_id"] = user.id
+            session["staff_name"] = user.username
+            session["staff_role"] = user.role
+            user.last_login = datetime.datetime.utcnow()
+            db.session.commit()
+            return redirect("/water")
+        else:
+            record_failed(ip)
+            log_login(username, False, "/water")
+            error = "Invalid username or password."
+
+    return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error)
+
+@app.route("/water/manifest.json")
+def water_manifest():
+    cfg = get_water_app_config()
+    return jsonify({
+        "name": cfg["app_name"],
+        "short_name": cfg["app_short_name"],
+        "description": f"{cfg['app_name']} - Mobile Restaurant Ordering App",
+        "start_url": "/water",
+        "scope": "/water",
+        "display": "standalone",
+        "orientation": "portrait",
+        "background_color": cfg["bg_color"],
+        "theme_color": cfg["theme_color"],
+        "icons": [
+            {
+                "src": cfg["app_icon_url"],
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable"
+            },
+            {
+                "src": cfg["app_icon_url"],
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ]
+    })
+
+@app.route("/water/download")
+def water_download():
+    app_config = get_water_app_config()
+    return render_template("water_download.html", restaurant=get_restaurant_info(), app_config=app_config)
+
+@app.route("/api/water/download-apk", methods=["GET"])
+def api_water_download_apk():
+    cfg = get_water_app_config()
+    apk_path = os.path.join(app.root_path, "static", "downloads", "isb-water-panel.apk")
+    if not os.path.exists(apk_path):
+        os.makedirs(os.path.dirname(apk_path), exist_ok=True)
+        from build_apk import generate_signed_apk
+        generate_signed_apk(apk_path, app_name=cfg["app_name"], version=cfg["app_version"])
+    return send_file(
+        apk_path,
+        mimetype="application/vnd.android.package-archive",
+        as_attachment=True,
+        download_name=cfg["apk_filename"]
+    )
+
+@app.route("/water")
+@app.route("/staff/water")
+@water_required
+def water_panel():
+    user = db.session.get(StaffUser, session["staff_id"])
+    tables = RestaurantTable.query.order_by(RestaurantTable.number).all()
+    categories = [c.name for c in Category.query.order_by(Category.sort_order).all()]
+    items = MenuItem.query.filter_by(available=True).order_by(MenuItem.sort_order).all()
+    addons = AddOn.query.filter_by(available=True).all()
+    grouped = {}
+    for c in get_category_order():
+        grouped[c] = [i for i in items if i.category == c]
+    return render_template("water.html",
+                           restaurant=get_restaurant_info(),
+                           app_config=get_water_app_config(),
+                           user=user,
+                           staff_name=user.name or user.username,
+                           staff_role=user.role,
+                           tables=tables,
+                           categories=categories,
+                           items=items,
+                           grouped=grouped,
+                           addons=addons)
+
+@app.route("/api/water/menu", methods=["GET"])
+@water_required
+def api_water_menu():
+    items = MenuItem.query.filter_by(available=True).order_by(MenuItem.sort_order).all()
+    addons = AddOn.query.filter_by(available=True).all()
+    grouped = {}
+    for c in get_category_order():
+        grouped[c] = [{
+            "id": i.id, "name": i.name, "category": i.category,
+            "price_full": i.price_full, "price_half": i.price_half,
+            "description": i.description, "image_url": i.image_url
+        } for i in items if i.category == c]
+    return jsonify({
+        "categories": get_category_order(),
+        "grouped": grouped,
+        "items": [{
+            "id": i.id, "name": i.name, "category": i.category,
+            "price_full": i.price_full, "price_half": i.price_half,
+            "description": i.description, "image_url": i.image_url
+        } for i in items],
+        "addons": [{"id": a.id, "name": a.name, "price": a.price} for a in addons]
+    })
+
+@app.route("/api/water/order", methods=["POST"])
+@water_required
+def api_water_create_order():
+    user = db.session.get(StaffUser, session["staff_id"])
+    if not user.can_water_action("can_create_order"):
+        return jsonify({"error": "Permission denied: Cannot create orders"}), 403
+
+    data = request.get_json(silent=True) or {}
+    cart = data.get("cart", [])
+    if not cart:
+        return jsonify({"error": "Cart is empty"}), 400
+
+    table_num = data.get("table_number")
+    if not table_num:
+        return jsonify({"error": "Table number is required"}), 400
+
+    table = RestaurantTable.query.filter_by(number=int(table_num)).first()
+    if not table:
+        return jsonify({"error": f"Table {table_num} does not exist"}), 404
+
+    # Check open item permission if open items present
+    has_open_item = any(line.get("open_item") for line in cart)
+    if has_open_item and not user.can_water_action("can_open_item"):
+        return jsonify({"error": "Permission denied: Open items not allowed"}), 403
+
+    order = Order(
+        order_no=next_order_no(),
+        token_no=next_token(),
+        order_type="dine_in",
+        table_number=table.number,
+        customer_name=data.get("customer_name") or f"Table {table.number} Guest",
+        customer_phone=data.get("customer_phone", ""),
+        waiter_name=user.name or user.username,
+        assigned_waiter_id=table.assigned_waiter_id or user.id,
+        created_by=user.username,
+        notes=data.get("notes", ""),
+        status="confirmed",
+        payment_method=data.get("payment_method", "counter"),
+        payment_status="pay_at_counter",
+        source="water",
+    )
+
+    # Build order items (trusted_prices=True allows open item with custom name/price)
+    subtotal = build_order_items(cart, order, trusted_prices=True)
+    if not order.items:
+        return jsonify({"error": "No valid items in order"}), 400
+
+    settings = get_settings()
+    tax_rate = float(settings.get("tax_rate", "6")) / 100
+    order.subtotal = subtotal
+    order.tax      = round(subtotal * tax_rate, 2)
+    order.total    = round(subtotal + order.tax, 2)
+
+    table.status = "occupied"
+    db.session.add(order)
+    db.session.flush()
+
+    # Format items summary
+    items_summary = ", ".join(f"{oi.qty}× {oi.name}" for oi in order.items)
+
+    # Record Water Activity Log
+    act_log = WaterActivityLog(
+        user_id=user.id,
+        username=user.username,
+        user_name=user.name or user.username,
+        action="create_order",
+        order_id=order.id,
+        order_no=order.order_no,
+        table_number=order.table_number,
+        items_detail=items_summary,
+        total_amount=order.total,
+    )
+    db.session.add(act_log)
+
+    # Trigger POS Real-Time Alert
+    pos_alert = WaterAlert(
+        alert_type="new_order",
+        order_id=order.id,
+        order_no=order.order_no,
+        table_number=order.table_number,
+        water_username=user.username,
+        water_name=user.name or user.username,
+        items_summary=items_summary,
+        status="unread",
+    )
+    db.session.add(pos_alert)
+
+    db.session.commit()
+    return jsonify({"ok": True, "order": serialize_order(order)})
+
+@app.route("/api/water/order/<int:oid>/add-items", methods=["POST"])
+@water_required
+def api_water_add_items(oid):
+    user = db.session.get(StaffUser, session["staff_id"])
+    if not user.can_water_action("can_add_items"):
+        return jsonify({"error": "Permission denied: Cannot add items to existing orders"}), 403
+
+    order, err = _editable_order_or_error(oid)
+    if err: return err
+
+    data = request.get_json(silent=True) or {}
+    cart = data.get("cart", [])
+    if not cart:
+        return jsonify({"error": "Cart is empty"}), 400
+
+    has_open_item = any(line.get("open_item") for line in cart)
+    if has_open_item and not user.can_water_action("can_open_item"):
+        return jsonify({"error": "Permission denied: Open items not allowed"}), 403
+
+    # Format added items description
+    added_summary_parts = []
+    for line in cart:
+        name = line.get("name")
+        qty = int(line.get("qty", 1))
+        if not name and line.get("id"):
+            it = db.session.get(MenuItem, line.get("id"))
+            if it: name = it.name
+        if name:
+            added_summary_parts.append(f"{qty}× {name}")
+    added_summary = ", ".join(added_summary_parts) or "Additional items"
+
+    build_order_items(cart, order, trusted_prices=True)
+    recompute_order_totals(order)
+
+    # Record Water Activity Log
+    act_log = WaterActivityLog(
+        user_id=user.id,
+        username=user.username,
+        user_name=user.name or user.username,
+        action="add_items",
+        order_id=order.id,
+        order_no=order.order_no,
+        table_number=order.table_number,
+        items_detail=added_summary,
+        total_amount=order.total,
+    )
+    db.session.add(act_log)
+
+    # Trigger POS Real-Time Alert
+    pos_alert = WaterAlert(
+        alert_type="add_items",
+        order_id=order.id,
+        order_no=order.order_no,
+        table_number=order.table_number,
+        water_username=user.username,
+        water_name=user.name or user.username,
+        items_summary=added_summary,
+        status="unread",
+    )
+    db.session.add(pos_alert)
+
+    db.session.commit()
+    return jsonify({"ok": True, "order": serialize_order(order), "added_summary": added_summary})
+
+@app.route("/api/water/active-orders", methods=["GET"])
+@water_required
+def api_water_active_orders():
+    orders = Order.query.filter(
+        Order.status.in_(["pending", "confirmed", "preparing", "ready", "served"]),
+        Order.order_type == "dine_in"
+    ).order_by(Order.created_at.desc()).all()
+
+    # Get set of order IDs that have had items added by water
+    add_item_order_ids = {
+        row[0] for row in db.session.query(WaterActivityLog.order_id).filter(
+            WaterActivityLog.action == "add_items"
+        ).all() if row[0]
+    }
+
+    res = []
+    for o in orders:
+        ord_dict = serialize_order(o)
+        ord_dict["has_additional_items"] = o.id in add_item_order_ids
+        res.append(ord_dict)
+    return jsonify(res)
+
+@app.route("/api/water/my-orders", methods=["GET"])
+@water_required
+def api_water_my_orders():
+    user = db.session.get(StaffUser, session["staff_id"])
+    water_logs = WaterActivityLog.query.filter_by(username=user.username).all()
+    interacted_order_ids = {l.order_id for l in water_logs if l.order_id}
+
+    orders = Order.query.filter(
+        or_(
+            Order.created_by == user.username,
+            func.lower(Order.waiter_name) == (user.name or user.username).lower(),
+            Order.id.in_(interacted_order_ids) if interacted_order_ids else False
+        )
+    ).order_by(Order.created_at.desc()).limit(100).all()
+
+    add_item_order_ids = {
+        row[0] for row in db.session.query(WaterActivityLog.order_id).filter(
+            WaterActivityLog.action == "add_items"
+        ).all() if row[0]
+    }
+
+    res = []
+    for o in orders:
+        ord_dict = serialize_order(o)
+        ord_dict["has_additional_items"] = o.id in add_item_order_ids
+        res.append(ord_dict)
+    return jsonify(res)
+
+@app.route("/api/water/tables", methods=["GET"])
+@water_required
+def api_water_tables():
+    tables = RestaurantTable.query.order_by(RestaurantTable.number).all()
+    active_orders = Order.query.filter(
+        Order.status.in_(["pending", "confirmed", "preparing", "ready", "served"]),
+        Order.order_type == "dine_in"
+    ).all()
+    orders_by_table = {}
+    for o in active_orders:
+        if o.table_number and o.table_number not in orders_by_table:
+            orders_by_table[o.table_number] = o
+
+    now = datetime.datetime.utcnow()
+    res = []
+    for t in tables:
+        t_data = t.to_dict()
+        act = orders_by_table.get(t.number)
+        if act:
+            t_data["has_active_order"] = True
+            t_data["status"] = "occupied"
+            elapsed_min = int((now - act.created_at).total_seconds() / 60) if act.created_at else 0
+            t_data["active_order"] = {
+                "id": act.id,
+                "order_no": act.order_no,
+                "item_count": sum(i.qty for i in act.items),
+                "total": act.total,
+                "subtotal": act.subtotal,
+                "status": act.status,
+                "waiter_name": act.waiter_name or "",
+                "created_at_time": act.created_at.strftime("%I:%M %p") if act.created_at else "",
+                "elapsed_minutes": elapsed_min,
+                "items": [{"name": i.name, "qty": i.qty, "unit_price": i.unit_price, "size": i.size} for i in act.items]
+            }
+        else:
+            t_data["has_active_order"] = False
+            t_data["active_order"] = None
+            t_data["status"] = t.status or "free"
+        res.append(t_data)
+    return jsonify(res)
+
+@app.route("/api/water/order/<int:oid>/timeline", methods=["GET"])
+@water_required
+def api_water_order_timeline(oid):
+    order = db.get_or_404(Order, oid)
+    # 1. Base creation event
+    events = [{
+        "event_type": "created",
+        "title": "Order Created",
+        "username": order.created_by or "Staff",
+        "user_name": order.waiter_name or order.created_by or "Staff",
+        "timestamp": order.created_at.strftime("%I:%M %p") if order.created_at else "",
+        "timestamp_iso": order.created_at.isoformat() if order.created_at else "",
+        "details": f"Initial dine-in order created for Table {order.table_number}",
+        "items_summary": ", ".join(f"{oi.qty}× {oi.name}" for oi in order.items)
+    }]
+
+    # 2. Query activity logs for additions
+    logs = WaterActivityLog.query.filter_by(order_id=oid).order_by(WaterActivityLog.created_at.asc()).all()
+    for l in logs:
+        if l.action == "add_items":
+            events.append({
+                "event_type": "add_items",
+                "title": "Additional Items Added",
+                "username": l.username,
+                "user_name": l.user_name or l.username,
+                "timestamp": l.created_at.strftime("%I:%M %p") if l.created_at else "",
+                "timestamp_iso": l.created_at.isoformat() if l.created_at else "",
+                "details": l.items_detail,
+                "total_amount": l.total_amount
+            })
+
+    return jsonify({
+        "ok": True,
+        "order_id": order.id,
+        "order_no": order.order_no,
+        "table_number": order.table_number,
+        "status": order.status,
+        "current_total": order.total,
+        "current_items": [{"name": i.name, "qty": i.qty, "unit_price": i.unit_price, "size": i.size} for i in order.items],
+        "events": events
+    })
+
+# ════════════════════════════════════════════
+#  POS REAL-TIME WATER ALERTS
+# ════════════════════════════════════════════
+
+@app.route("/api/pos/water-alerts", methods=["GET"])
+def api_pos_water_alerts():
+    if not api_staff_check(allow_kitchen=False):
+        return jsonify({"error": "Unauthorized"}), 401
+    alerts = WaterAlert.query.filter_by(status="unread").order_by(WaterAlert.created_at.asc()).all()
+    return jsonify([a.to_dict() for a in alerts])
+
+@app.route("/api/pos/water-alert/<int:aid>/ack", methods=["POST"])
+def api_pos_ack_water_alert(aid):
+    if not api_staff_check(allow_kitchen=False):
+        return jsonify({"error": "Unauthorized"}), 401
+    alert = db.session.get(WaterAlert, aid)
+    if not alert:
+        return jsonify({"error": "Alert not found"}), 404
+    alert.status = "acknowledged"
+    db.session.commit()
+    return jsonify({"ok": True})
 
 @app.route("/api/pos/order", methods=["POST"])
 def api_pos_create_order():
@@ -2777,6 +3383,130 @@ def api_admin_delete_staff(uid):
     db.session.commit()
     return jsonify({"ok":True})
 
+# ── Water Staff User Management & Logs ──
+
+@app.route("/api/admin/water-users", methods=["GET"])
+@admin_required
+def api_admin_water_users():
+    users = StaffUser.query.filter(
+        or_(StaffUser.role == "water", StaffUser.permissions.like("%water%"))
+    ).order_by(StaffUser.username).all()
+    res = []
+    for u in users:
+        perms = {}
+        if u.permissions:
+            try: perms = json.loads(u.permissions)
+            except Exception: pass
+        res.append({
+            "id": u.id,
+            "username": u.username,
+            "name": u.name or u.username,
+            "role": u.role,
+            "active": u.active,
+            "permissions": perms,
+            "last_login": u.last_login.strftime("%Y-%m-%d %H:%M") if u.last_login else "",
+            "created_at": u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else ""
+        })
+    return jsonify(res)
+
+@app.route("/api/admin/water-user", methods=["POST"])
+@admin_required
+def api_admin_save_water_user():
+    data = request.get_json(silent=True) or {}
+    uid = data.get("id")
+    u = db.session.get(StaffUser, uid) if uid else StaffUser()
+    username = (data.get("username") or "").strip().lower()
+    if not username and not uid:
+        return jsonify({"error": "Username is required"}), 400
+
+    if not uid:
+        existing = StaffUser.query.filter_by(username=username).first()
+        if existing:
+            return jsonify({"error": f"Username '{username}' already exists"}), 400
+        db.session.add(u)
+        u.username = username
+
+    u.name = (data.get("name") or "").strip()
+    u.role = "water"
+    u.active = bool(data.get("active", True))
+
+    perms = data.get("permissions") or {}
+    if isinstance(perms, dict):
+        perms["water_access"] = True
+        u.permissions = json.dumps(perms)
+    elif isinstance(perms, str):
+        u.permissions = perms
+
+    if data.get("password"):
+        u.set_password(data["password"])
+    elif not uid:
+        return jsonify({"error": "Password required for new user"}), 400
+
+    db.session.commit()
+    return jsonify({"ok": True, "id": u.id})
+
+@app.route("/api/admin/water-user/<int:uid>/toggle", methods=["POST"])
+@admin_required
+def api_admin_toggle_water_user(uid):
+    u = db.get_or_404(StaffUser, uid)
+    u.active = not u.active
+    db.session.commit()
+    return jsonify({"ok": True, "active": u.active})
+
+@app.route("/api/admin/water-user/<int:uid>/delete", methods=["POST"])
+@admin_required
+def api_admin_delete_water_user(uid):
+    u = db.get_or_404(StaffUser, uid)
+    db.session.delete(u)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/water-user/<int:uid>/reset-password", methods=["POST"])
+@admin_required
+def api_admin_reset_water_user_password(uid):
+    u = db.get_or_404(StaffUser, uid)
+    data = request.get_json(silent=True) or {}
+    new_pw = (data.get("password") or "").strip()
+    if not new_pw:
+        return jsonify({"error": "Password cannot be empty"}), 400
+    u.set_password(new_pw)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+@app.route("/api/admin/water-logs", methods=["GET"])
+@admin_required
+def api_admin_water_logs():
+    q = WaterActivityLog.query
+    user_filter = request.args.get("user")
+    table_filter = request.args.get("table")
+    if user_filter:
+        q = q.filter(or_(
+            func.lower(WaterActivityLog.username).like(f"%{user_filter.lower()}%"),
+            func.lower(WaterActivityLog.user_name).like(f"%{user_filter.lower()}%")
+        ))
+    if table_filter and table_filter.isdigit():
+        q = q.filter(WaterActivityLog.table_number == int(table_filter))
+
+    logs = q.order_by(WaterActivityLog.created_at.desc()).limit(200).all()
+    return jsonify([l.to_dict() for l in logs])
+
+@app.route("/api/admin/water-app-config", methods=["GET", "POST"])
+@admin_required
+def api_admin_water_app_config():
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        for k in ["water_app_name", "water_app_short_name", "water_app_version", "water_apk_filename"]:
+            if k in data:
+                s = db.session.get(SiteSetting, k)
+                if not s:
+                    s = SiteSetting(key=k, value=str(data[k]))
+                    db.session.add(s)
+                else:
+                    s.value = str(data[k])
+        db.session.commit()
+        return jsonify({"ok": True, "config": get_water_app_config()})
+    return jsonify({"ok": True, "config": get_water_app_config()})
+
 # ── IP Whitelist ──
 
 @app.route("/api/admin/ip-whitelist", methods=["GET"])
@@ -3142,11 +3872,52 @@ def migrate_db():
             cur.execute("""CREATE TABLE IF NOT EXISTS staff_user (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username VARCHAR(40) UNIQUE NOT NULL,
+                name VARCHAR(80) DEFAULT '',
                 password_hash VARCHAR(128) NOT NULL,
                 role VARCHAR(20) DEFAULT 'staff',
+                permissions TEXT DEFAULT '',
                 active BOOLEAN DEFAULT 1,
                 created_at DATETIME,
                 last_login DATETIME
+            )""")
+        else:
+            su_cols = cols("staff_user")
+            if "name" not in su_cols:
+                try: cur.execute("ALTER TABLE staff_user ADD COLUMN name VARCHAR(80) DEFAULT ''")
+                except Exception: pass
+            if "permissions" not in su_cols:
+                try: cur.execute("ALTER TABLE staff_user ADD COLUMN permissions TEXT DEFAULT ''")
+                except Exception: pass
+
+        # WaterActivityLog table
+        if "water_activity_log" not in tables_exist():
+            cur.execute("""CREATE TABLE IF NOT EXISTS water_activity_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username VARCHAR(40) NOT NULL,
+                user_name VARCHAR(80) DEFAULT '',
+                action VARCHAR(40) NOT NULL,
+                order_id INTEGER,
+                order_no VARCHAR(20) DEFAULT '',
+                table_number INTEGER,
+                items_detail TEXT DEFAULT '',
+                total_amount REAL DEFAULT 0.0,
+                created_at DATETIME
+            )""")
+
+        # WaterAlert table
+        if "water_alert" not in tables_exist():
+            cur.execute("""CREATE TABLE IF NOT EXISTS water_alert (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                alert_type VARCHAR(30) DEFAULT 'new_order',
+                order_id INTEGER,
+                order_no VARCHAR(20) DEFAULT '',
+                table_number INTEGER,
+                water_username VARCHAR(40) DEFAULT '',
+                water_name VARCHAR(80) DEFAULT '',
+                items_summary TEXT DEFAULT '',
+                status VARCHAR(20) DEFAULT 'unread',
+                created_at DATETIME
             )""")
 
         # IPWhitelist table
