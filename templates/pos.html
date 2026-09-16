@@ -1181,6 +1181,27 @@ function showTableCallNotif(c){
   setTimeout(() => { if(el.style.display==='block') el.style.display='none'; }, 10000);
 }
 
+function showWaterAlertNotif(wa){
+  const el = document.getElementById('incoming-notif');
+  if(!el) return;
+  el.style.borderLeftColor = '#0284c7';
+  if(wa.alert_type === 'new_order'){
+    document.getElementById('incoming-notif-title').textContent = '🔔 NEW WATER ORDER';
+    document.getElementById('incoming-notif-text').textContent = `Table ${wa.table_number || '?'} • Order #${wa.order_no} (Water Staff: ${wa.water_name || wa.water_username})`;
+    document.getElementById('incoming-notif-sub').textContent = `Items: ${wa.items_summary || 'Water/Drink Items'}`;
+  } else {
+    document.getElementById('incoming-notif-title').textContent = '🔔 WATER — ADDITIONAL ITEMS';
+    document.getElementById('incoming-notif-text').textContent = `Table ${wa.table_number || '?'} • Order #${wa.order_no} (Added by: ${wa.water_name || wa.water_username})`;
+    document.getElementById('incoming-notif-sub').textContent = `New Items: ${wa.items_summary || 'Additional Items'}`;
+  }
+  document.getElementById('incoming-notif-actions').innerHTML = `
+    <button onclick="document.getElementById('incoming-notif').style.display='none'; openPanel('ongoing');" style="background:#0284c7;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">View Ongoing Orders</button>
+    <button onclick="document.getElementById('incoming-notif').style.display='none';" style="background:#374151;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;">Dismiss</button>
+  `;
+  el.style.display = 'block';
+  setTimeout(() => { if(el.style.display==='block') el.style.display='none'; }, 10000);
+}
+
 async function loadBadges(){
   try{
     const res = await fetch('/api/pos/orders');
@@ -1229,6 +1250,20 @@ async function loadBadges(){
         }
         _seenCalls[c.id] = c.status;
       });
+    }
+  }catch(e){}
+
+  // Water Alerts (New Orders & Additional Items)
+  try{
+    const wres = await fetch('/api/pos/water-alerts');
+    if(wres.ok){
+      const walerts = await wres.json();
+      for(const wa of walerts){
+        bellIncoming();
+        showWaterAlertNotif(wa);
+        fetch('/api/pos/water-alert/' + wa.id + '/ack', {method: 'POST'}).catch(()=>{});
+        if(typeof renderPanel === 'function') renderPanel('ongoing');
+      }
     }
   }catch(e){}
 
