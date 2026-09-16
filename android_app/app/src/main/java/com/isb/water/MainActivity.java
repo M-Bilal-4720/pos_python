@@ -24,7 +24,6 @@ public class MainActivity extends Activity {
 
     private static final String PREFS_NAME = "isb_water_prefs";
     private static final String KEY_SERVER_URL = "server_url";
-    private static final String DEFAULT_URL = "http://192.168.50.53:5000/water";
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -36,7 +35,8 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        String serverUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_URL);
+        String defaultUrl = getString(R.string.default_server_url);
+        String serverUrl = prefs.getString(KEY_SERVER_URL, defaultUrl);
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.parseColor("#0B0C10"));
@@ -67,6 +67,7 @@ public class MainActivity extends Activity {
         ws.setLoadWithOverviewMode(true);
         ws.setSupportZoom(false);
         ws.setBuiltInZoomControls(false);
+        ws.setTextZoom(100);
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
@@ -86,10 +87,13 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                view.loadUrl(request.getUrl().toString());
-                return true;
-            }}
-        );
+                return false;
+            }
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return false;
+            }
+        });
 
         webView.loadUrl(serverUrl);
     }

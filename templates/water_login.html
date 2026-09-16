@@ -43,17 +43,30 @@
       -webkit-tap-highlight-color: transparent;
       box-sizing: border-box;
     }
-    body {
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
       background-color: #0B0C10;
       color: #F1F5F9;
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 100vh;
+      min-height: 100dvh;
       user-select: none;
       -webkit-user-select: none;
-      min-height: 100dvh;
     }
     .safe-padding {
-      padding-top: max(env(safe-area-inset-top, 24px), 24px);
-      padding-bottom: max(env(safe-area-inset-bottom, 24px), 24px);
+      padding-top: max(env(safe-area-inset-top, 20px), 20px);
+      padding-bottom: max(env(safe-area-inset-bottom, 20px), 20px);
+    }
+    input {
+      font-family: inherit;
     }
   </style>
 </head>
@@ -83,6 +96,7 @@
     {% endif %}
 
     <form method="POST" action="/water/login" class="space-y-4">
+      <input type="hidden" name="next" value="{{ next_url or '' }}">
       <div>
         <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-1.5">Username</label>
         <div class="relative">
