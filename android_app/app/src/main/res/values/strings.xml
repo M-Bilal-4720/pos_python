@@ -1,6 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ISB Water</string>
-    <string name="app_full_name">Islamabad Restaurant &amp; Cafe Water Ordering</string>
-    <string name="app_version">1.0.0</string>
+    <string name="app_full_name">Islamabad Restaurant Water</string>
+    <string name="default_server_url">http://192.168.50.53:5000/water</string>
 </resources>
-

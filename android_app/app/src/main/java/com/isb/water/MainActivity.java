@@ -3,50 +3,73 @@ package com.isb.water;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-    // Default development & local fallback; can be configured via build/environment
-    private static final String WATER_PANEL_URL = "http://10.0.2.2:5000/water"; 
+    private static final String PREFS_NAME = "isb_water_prefs";
+    private static final String KEY_SERVER_URL = "server_url";
+    private static final String DEFAULT_URL = "http://192.168.50.53:5000/water";
+
     private WebView webView;
     private ProgressBar progressBar;
+    private SharedPreferences prefs;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
-        webView = findViewById(R.id.webview);
-        progressBar = findViewById(R.id.progressBar);
+        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String serverUrl = prefs.getString(KEY_SERVER_URL, DEFAULT_URL);
 
-        // Configure modern WebView capabilities
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setUseWideViewPort(true);
-        settings.setLoadWithOverviewMode(true);
-        settings.setSupportZoom(false);
-        settings.setBuiltInZoomControls(false);
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.parseColor("#0B0C10"));
 
-        // Hardware acceleration
-        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.parseColor("#0B0C10"));
+
+        progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setMax(100);
+        progressBar.setLayoutParams(new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 8
+        ));
+        progressBar.setVisibility(View.GONE);
+
+        root.addView(webView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        root.addView(progressBar);
+        setContentView(root);
+
+        WebSettings ws = webView.getSettings();
+        ws.setJavaScriptEnabled(true);
+        ws.setDomStorageEnabled(true);
+        ws.setDatabaseEnabled(true);
+        ws.setAllowFileAccess(true);
+        ws.setAllowContentAccess(true);
+        ws.setUseWideViewPort(true);
+        ws.setLoadWithOverviewMode(true);
+        ws.setSupportZoom(false);
+        ws.setBuiltInZoomControls(false);
+        ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+        webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -65,29 +88,24 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 view.loadUrl(request.getUrl().toString());
                 return true;
-            }
+            }}
+        );
 
-            @Override
-            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (!isNetworkAvailable()) {
-                    Toast.makeText(MainActivity.this, "Network unavailable. Please connect to restaurant Wi-Fi.", Toast.LENGTH_LONG).show();
-                }
-            }
-        });
-
-        if (isNetworkAvailable()) {
-            webView.loadUrl(WATER_PANEL_URL);
-        } else {
-            Toast.makeText(this, "No internet connection detected.", Toast.LENGTH_LONG).show();
-            webView.loadUrl(WATER_PANEL_URL);
-        }
+        webView.loadUrl(serverUrl);
     }
 
-    private boolean isNetworkAvailable() {
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (cm == null) return false;
-        NetworkInfo active = cm.getActiveNetworkInfo();
-        return active != null && active.isConnectedOrConnecting();
+    private class WebAppInterface {
+        @JavascriptInterface
+        public void setServerUrl(final String newUrl) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    prefs.edit().putString(KEY_SERVER_URL, newUrl).apply();
+                    Toast.makeText(MainActivity.this, "Connecting to: " + newUrl, Toast.LENGTH_SHORT).show();
+                    webView.loadUrl(newUrl);
+                }
+            });
+        }
     }
 
     @Override
@@ -99,4 +117,3 @@ public class MainActivity extends Activity {
         return super.onKeyDown(keyCode, event);
     }
 }
-
