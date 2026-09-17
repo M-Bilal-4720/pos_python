@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0B0C10">
+  <link rel="manifest" href="/water/manifest.json">
+  <title>Get {{ app_config.app_name }} — Download APK &amp; PWA</title>
+
+  <!-- Tailwind CSS & Iconify -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            accent: '#C65A1E',
+            'water-blue': '#0284C7',
+            'dark-bg': '#0B0C10',
+            'card-bg': '#14161E',
+            'border-subtle': 'rgba(255, 255, 255, 0.08)',
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #0B0C10;
+      color: #F1F5F9;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  </style>
+</head>
+<body class="max-w-md mx-auto min-h-screen px-5 py-8 flex flex-col justify-between border-x border-border-subtle bg-dark-bg">
+
+  <!-- TOP HEADER -->
+  <div class="text-center space-y-3 pt-2">
+    <!-- App Logo -->
+    <div class="w-24 h-24 rounded-3xl bg-sky-500/10 border-2 border-sky-500/40 p-2.5 mx-auto flex items-center justify-center shadow-xl shadow-sky-950/60">
+      <img src="{{ app_config.app_logo_url }}" alt="{{ app_config.app_name }}" class="w-full h-full object-contain rounded-2xl">
+    </div>
+
+    <div>
+      <div class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[10px] font-bold uppercase tracking-wider mb-1">
+        Official Release • v{{ app_config.app_version }}
+      </div>
+      <h1 class="text-2xl font-black text-white uppercase tracking-tight">{{ app_config.app_name }}</h1>
+      <p class="text-xs text-neutral-400 mt-1 max-w-xs mx-auto">Fast, reliable mobile table-side water &amp; beverage ordering for restaurant floor staff.</p>
+    </div>
+  </div>
+
+  <!-- ACTION BUTTONS -->
+  <div class="my-6 space-y-3">
+
+    <!-- 1. Download Android APK Button -->
+    <a href="/api/water/download-apk" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold p-4 rounded-2xl flex items-center justify-between shadow-lg shadow-emerald-950/50 border border-emerald-400/30 active:scale-[0.98] transition">
+      <div class="flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">
+          <iconify-icon icon="solar:smartphone-2-bold"></iconify-icon>
+        </div>
+        <div class="text-left">
+          <div class="text-sm font-black leading-tight">Download Android APK</div>
+          <div class="text-[11px] text-emerald-100 font-mono mt-0.5">{{ app_config.apk_filename }}</div>
+        </div>
+      </div>
+      <iconify-icon icon="solar:download-square-bold" class="text-2xl text-emerald-200"></iconify-icon>
+    </a>
+
+    <!-- 2. Install PWA Web App Button -->
+    <button onclick="triggerPWAInstall()" id="btn-pwa-install" class="w-full bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white font-extrabold p-4 rounded-2xl flex items-center justify-between shadow-lg shadow-sky-950/50 border border-sky-400/30 active:scale-[0.98] transition">
+      <div class="flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">
+          <iconify-icon icon="solar:widget-2-bold"></iconify-icon>
+        </div>
+        <div class="text-left">
+          <div class="text-sm font-black leading-tight">Install Web App (PWA)</div>
+          <div class="text-[11px] text-sky-100 mt-0.5">Add directly to phone Home Screen</div>
+        </div>
+      </div>
+      <iconify-icon icon="solar:add-circle-bold" class="text-2xl text-sky-200"></iconify-icon>
+    </button>
+
+    <!-- 3. Open Web Water Panel -->
+    <a href="/water" class="w-full bg-card-bg hover:bg-white/5 border border-border-subtle text-slate-200 font-bold p-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs active:scale-[0.98] transition">
+      <iconify-icon icon="solar:global-linear" class="text-base text-neutral-400"></iconify-icon>
+      <span>Open Water Panel in Browser</span>
+    </a>
+
+  </div>
+
+  <!-- ANDROID INSTALLATION INSTRUCTIONS CARD -->
+  <div class="bg-card-bg border border-border-subtle rounded-2xl p-4 space-y-3">
+    <div class="text-xs font-bold text-white uppercase tracking-wide flex items-center gap-1.5">
+      <iconify-icon icon="solar:info-circle-bold" class="text-sky-400 text-sm"></iconify-icon>
+      <span>How to install APK on Android:</span>
+    </div>
+
+    <div class="space-y-2 text-[11px] text-neutral-300">
+      <div class="flex items-start gap-2">
+        <span class="w-4 h-4 rounded-full bg-sky-500/20 text-sky-400 font-mono font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">1</span>
+        <span>Tap <b>Download Android APK</b> above to save the file.</span>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="w-4 h-4 rounded-full bg-sky-500/20 text-sky-400 font-mono font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">2</span>
+        <span>Open your phone's notification bar or <b>Files / Downloads</b>.</span>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="w-4 h-4 rounded-full bg-sky-500/20 text-sky-400 font-mono font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">3</span>
+        <span>Tap the file and choose <b>Settings $\rightarrow$ Allow from this source</b> if prompted.</span>
+      </div>
+      <div class="flex items-start gap-2">
+        <span class="w-4 h-4 rounded-full bg-sky-500/20 text-sky-400 font-mono font-bold flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">4</span>
+        <span>Tap <b>Install</b> and launch <b>{{ app_config.app_short_name }}</b> from your home screen!</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="pt-6 text-center text-xs text-neutral-500">
+    <div>{{ restaurant.name }}</div>
+    <div class="text-[10px] text-neutral-600 mt-0.5">Unified System Architecture • Mobile + APK + POS</div>
+  </div>
+
+  <script>
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('btn-pwa-install');
+      if (btn) btn.classList.remove('opacity-60');
+    });
+
+    function triggerPWAInstall() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choice) => {
+          deferredPrompt = null;
+        });
+      } else {
+        // Fallback for iOS or already installed
+        alert('To install this app on your phone:\n\n• On iPhone/Safari: Tap Share icon (box with up arrow) -> "Add to Home Screen".\n• On Android/Chrome: Tap 3 dots menu -> "Install App" or "Add to Home screen".');
+      }
+    }
+  </script>
+
+</body>
+</html>
+

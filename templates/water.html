@@ -1,0 +1,2212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0B0C10">
+  <link rel="manifest" href="/water/manifest.json">
+  <title>{{ restaurant.name }} — Mobile Water Panel</title>
+
+  <!-- Tailwind CSS & Iconify -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            accent: '#C65A1E',
+            'accent-hover': '#A84815',
+            'water-blue': '#0284C7',
+            'water-dark': '#0369A1',
+            'water-glow': 'rgba(2, 132, 199, 0.25)',
+            'dark-bg': '#0B0C10',
+            'surface-card': '#14161E',
+            'surface-hover': '#1B1E28',
+            'border-subtle': 'rgba(255, 255, 255, 0.08)',
+            'border-accent': 'rgba(198, 90, 30, 0.4)',
+            'border-water': 'rgba(2, 132, 199, 0.4)',
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    html {
+      min-height: 100%;
+      background-color: #0B0C10;
+    }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      padding: 0;
+      background-color: #0B0C10;
+      color: #F1F5F9;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
+    }
+    /* Touch momentum scrolling for mobile */
+    .scrollable {
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    .scrollable-x {
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    /* Thin, visible modern scrollbar so staff can see scrollable content */
+    .custom-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .bottom-nav-safe {
+      padding-bottom: max(env(safe-area-inset-bottom, 12px), 12px);
+    }
+    .top-bar-safe {
+      padding-top: max(env(safe-area-inset-top, 0px), 0px);
+    }
+
+    /* Modal / Drawer animations */
+    .sheet-up {
+      animation: sheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes sheetUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .fade-in {
+      animation: fadeIn 0.2s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .scale-in {
+      animation: scaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Pulse wave for water action */
+    .water-pulse {
+      box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.5);
+      animation: waterGlow 2s infinite;
+    }
+    @keyframes waterGlow {
+      0% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.5); }
+      70% { box-shadow: 0 0 0 10px rgba(2, 132, 199, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0); }
+    }
+  </style>
+</head>
+<body class="w-full max-w-md mx-auto relative bg-dark-bg text-slate-100 shadow-2xl border-x border-border-subtle">
+
+  <!-- Network Offline Warning Banner -->
+  <div id="offline-banner" class="hidden bg-amber-500 text-black text-xs font-black py-1 px-4 text-center tracking-wide flex items-center justify-center gap-1.5 z-50 flex-shrink-0 shadow-md">
+    <iconify-icon icon="solar:danger-triangle-bold" class="text-sm"></iconify-icon>
+    <span>Network Offline — Waiting for restaurant Wi-Fi...</span>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       1. TOP MOBILE APP BAR
+       ════════════════════════════════════════════════════════════ -->
+  <header class="sticky top-0 z-30 top-bar-safe bg-[#10121A]/95 backdrop-blur-md border-b border-border-subtle px-4 py-3 flex items-center justify-between shadow-md flex-shrink-0">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 font-bold shadow-sm">
+        <iconify-icon icon="solar:water-drop-bold" class="text-xl"></iconify-icon>
+      </div>
+      <div>
+        <div class="text-sm font-bold tracking-tight text-white leading-tight flex items-center gap-1.5">
+          <span>{{ restaurant.name }}</span>
+          <span class="bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold">Water</span>
+        </div>
+        <div class="text-[11px] text-neutral-400 flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>{{ staff_name }}</span>
+          <span class="text-neutral-600">•</span>
+          <span class="text-neutral-400 capitalize">{{ staff_role }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Reload, Audio, Download & Logout -->
+    <div class="flex items-center gap-1.5">
+      <button onclick="window.location.reload(true)" class="w-8 h-8 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm border border-sky-500/30 active:scale-95 transition" title="Refresh Page">
+        <iconify-icon icon="solar:refresh-linear"></iconify-icon>
+      </button>
+      <a href="/water/download" class="px-2 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition" title="Get App">
+        <iconify-icon icon="solar:smartphone-2-bold"></iconify-icon>
+        <span>App</span>
+      </a>
+      <button onclick="toggleAudio()" id="sound-btn" class="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 flex items-center justify-center text-sm border border-white/10 active:scale-95 transition" title="Sound toggle">
+        <iconify-icon icon="solar:volume-loud-bold" id="sound-icon"></iconify-icon>
+      </button>
+      <a href="/logout" class="w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center text-sm border border-red-500/20 active:scale-95 transition" title="Logout">
+        <iconify-icon icon="solar:logout-2-linear"></iconify-icon>
+      </a>
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════════════════════════════════
+       2. DYNAMIC APP VIEWS CONTAINER
+       ════════════════════════════════════════════════════════════ -->
+  <main class="w-full relative pb-36">
+
+    <!-- ────────────────────────────────────────────────────────────
+         VIEW 1: HOME DASHBOARD
+         ──────────────────────────────────────────────────────────── -->
+    <section id="view-home" class="p-4 space-y-4">
+      
+      <!-- Greeting Banner -->
+      <div class="bg-gradient-to-br from-[#181B26] to-[#12141C] border border-border-subtle rounded-2xl p-4 shadow-sm relative overflow-hidden">
+        <div class="absolute -right-4 -bottom-4 text-sky-500/10 text-8xl pointer-events-none">
+          <iconify-icon icon="solar:water-drop-bold"></iconify-icon>
+        </div>
+        <div class="relative z-10">
+          <div class="text-xs text-neutral-400 uppercase tracking-wider font-semibold">Water Service Panel</div>
+          <div class="text-xl font-extrabold text-white mt-0.5">Welcome, {{ staff_name }} 👋</div>
+          <p class="text-xs text-neutral-400 mt-1">Take quick table water orders or add items to active tables.</p>
+        </div>
+      </div>
+
+      <!-- PRIMARY ACTION: + NEW ORDER (Large Button) -->
+      <button onclick="startNewOrderFlow()" class="w-full bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white font-bold py-3.5 px-4 rounded-2xl flex items-center justify-between shadow-lg shadow-sky-950/40 border border-sky-400/30 active:scale-[0.98] transition">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">
+            <iconify-icon icon="solar:add-circle-bold"></iconify-icon>
+          </div>
+          <div class="text-left">
+            <div class="text-base font-extrabold leading-tight">+ New Order</div>
+            <div class="text-[11px] text-sky-100/80 font-medium">Select Table $\rightarrow$ Add Items $\rightarrow$ Submit</div>
+          </div>
+        </div>
+        <iconify-icon icon="solar:arrow-right-linear" class="text-xl text-sky-200"></iconify-icon>
+      </button>
+
+      <!-- Quick Action Grid -->
+      <div class="grid grid-cols-3 gap-2.5">
+        <button onclick="switchView('view-tables')" class="bg-surface-card hover:bg-surface-hover border border-border-subtle p-3 rounded-xl flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition">
+          <div class="w-8 h-8 rounded-lg bg-white/5 text-sky-400 flex items-center justify-center text-lg">
+            <iconify-icon icon="solar:chair-bold"></iconify-icon>
+          </div>
+          <span class="text-xs font-bold text-slate-200">Tables</span>
+          <span id="home-tables-badge" class="text-[10px] text-neutral-400 font-mono">12 Tables</span>
+        </button>
+
+        <button onclick="switchView('view-active')" class="bg-surface-card hover:bg-surface-hover border border-border-subtle p-3 rounded-xl flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg">
+            <iconify-icon icon="solar:bolt-circle-bold"></iconify-icon>
+          </div>
+          <span class="text-xs font-bold text-slate-200">Active</span>
+          <span id="home-active-badge" class="text-[10px] text-emerald-400 font-mono">0 Active</span>
+        </button>
+
+        <button onclick="openOpenItemModal()" class="bg-surface-card hover:bg-surface-hover border border-border-subtle p-3 rounded-xl flex flex-col items-center justify-center gap-1.5 text-center active:scale-95 transition">
+          <div class="w-8 h-8 rounded-lg bg-accent/10 text-accent flex items-center justify-center text-lg">
+            <iconify-icon icon="solar:pen-new-square-bold"></iconify-icon>
+          </div>
+          <span class="text-xs font-bold text-slate-200">+ Custom</span>
+          <span class="text-[10px] text-accent font-medium">Open Item</span>
+        </button>
+      </div>
+
+      <!-- Live Feed of Active Orders -->
+      <div class="pt-2">
+        <div class="flex items-center justify-between mb-2.5">
+          <div class="text-xs uppercase tracking-wider font-bold text-neutral-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>Active Dine-In Tables</span>
+          </div>
+          <button onclick="refreshData()" class="text-xs text-sky-400 flex items-center gap-1 hover:underline">
+            <iconify-icon icon="solar:refresh-linear" id="home-refresh-icon"></iconify-icon>
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        <div id="home-active-list" class="space-y-2.5">
+          <!-- Populated by JS -->
+          <div class="p-8 text-center text-neutral-500 bg-surface-card rounded-2xl border border-border-subtle">
+            <iconify-icon icon="solar:clock-circle-linear" class="text-3xl mb-1"></iconify-icon>
+            <div class="text-xs">Loading active tables...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────────
+         VIEW 2: SELECT TABLE SCREEN (TABLE FIRST FLOW)
+         ──────────────────────────────────────────────────────────── -->
+    <section id="view-tables" class="hidden p-4 space-y-3">
+      <!-- Top Step Header -->
+      <div class="flex items-center justify-between pb-1 border-b border-border-subtle">
+        <div>
+          <h2 class="text-base font-extrabold text-white flex items-center gap-1.5">
+            <iconify-icon icon="solar:chair-bold" class="text-sky-400"></iconify-icon>
+            <span>Select Table</span>
+          </h2>
+          <p class="text-[11px] text-neutral-400">Tap available table for New Order, or active table to Add Items</p>
+        </div>
+        <button onclick="switchView('view-home')" class="text-xs text-neutral-400 hover:text-white bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg">
+          Cancel
+        </button>
+      </div>
+
+      <!-- Filter Chips -->
+      <div class="flex items-center gap-1.5 overflow-x-auto scrollable-x custom-scroll pb-1">
+        <button onclick="setTableFilter('all')" id="tbl-filter-all" class="px-3 py-1 rounded-full text-xs font-bold bg-sky-500 text-white shadow-sm transition">
+          All Tables
+        </button>
+        <button onclick="setTableFilter('free')" id="tbl-filter-free" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/5 text-neutral-300 hover:bg-white/10 transition">
+          Available Only
+        </button>
+        <button onclick="setTableFilter('occupied')" id="tbl-filter-occupied" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/5 text-neutral-300 hover:bg-white/10 transition">
+          Active Orders Only
+        </button>
+      </div>
+
+      <!-- Table Cards Grid -->
+      <div id="tables-grid" class="grid grid-cols-2 gap-2.5 pt-1">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────────
+         VIEW 3: EXISTING ORDER DETAILS SCREEN (ADD MORE ITEMS)
+         ──────────────────────────────────────────────────────────── -->
+    <section id="view-existing-order" class="hidden p-4 space-y-3">
+      <!-- Header with back button -->
+      <div class="flex items-center justify-between pb-1 border-b border-border-subtle">
+        <button onclick="switchView('view-tables')" class="text-xs text-neutral-400 hover:text-white flex items-center gap-1 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
+          <iconify-icon icon="solar:arrow-left-linear"></iconify-icon>
+          <span>Back to Tables</span>
+        </button>
+        <span class="text-xs font-bold text-sky-400 bg-sky-500/10 border border-sky-500/30 px-2.5 py-0.5 rounded-full uppercase">
+          Active Bill
+        </span>
+      </div>
+
+      <!-- Order Details Card -->
+      <div class="bg-surface-card border border-border-subtle rounded-2xl p-4 space-y-3">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-xs text-neutral-400 font-semibold uppercase tracking-wide">Table</div>
+            <div id="ex-table-title" class="text-2xl font-black text-white leading-tight">Table 12</div>
+            <div id="ex-order-meta" class="text-xs text-neutral-400 mt-0.5">Order #MB260914001 • Confirmed</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-neutral-400 font-semibold">Current Bill</div>
+            <div id="ex-order-total" class="text-xl font-extrabold text-emerald-400 font-mono">RM 0.00</div>
+          </div>
+        </div>
+
+        <!-- Prominent Button: + ADD MORE ITEMS -->
+        <button onclick="startAddItemsFlowFromExisting()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 border border-emerald-400/40 active:scale-[0.98] transition">
+          <iconify-icon icon="solar:add-circle-bold" class="text-xl"></iconify-icon>
+          <span class="text-sm tracking-wide">+ ADD MORE ITEMS TO THIS ORDER</span>
+        </button>
+      </div>
+
+      <!-- Current Items on Order -->
+      <div class="bg-surface-card border border-border-subtle rounded-2xl p-4 space-y-2">
+        <div class="text-xs font-bold text-neutral-300 uppercase tracking-wider flex items-center justify-between">
+          <span>Current Items on Table</span>
+          <span id="ex-items-count" class="text-[11px] font-mono text-neutral-400">3 Items</span>
+        </div>
+        <div id="ex-items-list" class="divide-y divide-border-subtle">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Order History Snippet -->
+      <div class="bg-surface-card border border-border-subtle rounded-2xl p-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-white/5 text-neutral-300 flex items-center justify-center text-base">
+            <iconify-icon icon="solar:history-bold"></iconify-icon>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white">Order Timeline &amp; Audit</div>
+            <div class="text-[11px] text-neutral-400">View who created &amp; added items</div>
+          </div>
+        </div>
+        <button onclick="openTimelineModalCurrent()" class="text-xs text-sky-400 hover:underline font-semibold flex items-center gap-1">
+          <span>Timeline</span>
+          <iconify-icon icon="solar:arrow-right-linear"></iconify-icon>
+        </button>
+      </div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────────
+         VIEW 4: MOBILE MENU (ITEM SELECTION & QUANTITY CONTROLS)
+         ──────────────────────────────────────────────────────────── -->
+    <section id="view-menu" class="hidden p-4 space-y-3">
+      <!-- Mode Header Banner -->
+      <div id="menu-mode-banner" class="bg-sky-500/10 border border-sky-500/30 rounded-xl p-2.5 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse"></span>
+          <div>
+            <div id="menu-mode-title" class="text-xs font-bold text-white leading-tight">New Order — Table 12</div>
+            <div id="menu-mode-sub" class="text-[10px] text-sky-300 font-medium">Select items to place new order</div>
+          </div>
+        </div>
+        <button onclick="cancelMenuMode()" class="text-[11px] text-neutral-400 hover:text-white bg-white/5 border border-white/10 px-2 py-1 rounded-lg">
+          Change Table
+        </button>
+      </div>
+
+      <!-- Search & Custom Item Row -->
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-2.5 text-neutral-500 text-sm"></iconify-icon>
+          <input type="text" id="mobile-search-input" oninput="filterMenuItemsMobile()" placeholder="Search drinks, water, food..." class="w-full bg-surface-card border border-border-subtle rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-neutral-500 outline-none focus:border-sky-500 transition">
+        </div>
+        <button onclick="openOpenItemModal()" class="bg-surface-card hover:bg-surface-hover border border-border-subtle text-accent text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 flex-shrink-0 active:scale-95 transition">
+          <iconify-icon icon="solar:add-circle-linear" class="text-base"></iconify-icon>
+          <span>+ Open Item</span>
+        </button>
+      </div>
+
+      <!-- Horizontal Category Chips -->
+      <div class="flex items-center gap-1.5 overflow-x-auto scrollable-x custom-scroll pb-1">
+        <button onclick="setMenuCategory('All')" id="cat-pill-All" class="cat-pill px-3 py-1 rounded-full text-xs font-bold bg-accent text-white shadow-sm flex-shrink-0 transition">
+          All
+        </button>
+        {% for c in categories %}
+        <button onclick="setMenuCategory('{{ c }}')" id="cat-pill-{{ c }}" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-surface-card text-neutral-300 hover:text-white border border-border-subtle flex-shrink-0 transition">
+          {{ c }}
+        </button>
+        {% endfor %}
+      </div>
+
+      <!-- Menu Items List (Mobile Cards) -->
+      <div id="mobile-menu-list" class="space-y-2 pt-1">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────────
+         VIEW 5: ACTIVE ORDERS LIST
+         ──────────────────────────────────────────────────────────── -->
+    <section id="view-active" class="hidden p-4 space-y-3">
+      <div class="flex items-center justify-between pb-1 border-b border-border-subtle">
+        <div>
+          <h2 class="text-base font-extrabold text-white flex items-center gap-1.5">
+            <iconify-icon icon="solar:bolt-circle-bold" class="text-emerald-400"></iconify-icon>
+            <span>Active Orders</span>
+          </h2>
+          <p class="text-[11px] text-neutral-400">All seated dine-in orders on the floor</p>
+        </div>
+        <button onclick="loadActiveOrdersView()" class="text-xs text-sky-400 flex items-center gap-1 hover:underline">
+          <iconify-icon icon="solar:refresh-linear"></iconify-icon>
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      <div id="active-orders-full-list" class="space-y-2.5">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────────
+         VIEW 6: MY ORDERS SHIFT HISTORY
+         ──────────────────────────────────────────────────────────── -->
+    <section id="view-my-orders" class="hidden p-4 space-y-3">
+      <div class="flex items-center justify-between pb-1 border-b border-border-subtle">
+        <div>
+          <h2 class="text-base font-extrabold text-white flex items-center gap-1.5">
+            <iconify-icon icon="solar:clipboard-list-bold" class="text-sky-400"></iconify-icon>
+            <span>My Shift Orders</span>
+          </h2>
+          <p class="text-[11px] text-neutral-400">Orders you created or modified with water/items</p>
+        </div>
+        <button onclick="loadMyOrdersView()" class="text-xs text-sky-400 flex items-center gap-1 hover:underline">
+          <iconify-icon icon="solar:refresh-linear"></iconify-icon>
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      <div id="my-orders-full-list" class="space-y-2.5">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- ────────────────────────────────────────────────────────────
+         VIEW 7: PROFILE & PERMISSIONS
+         ──────────────────────────────────────────────────────────── -->
+    <section id="view-profile" class="hidden p-4 space-y-4">
+      <div class="bg-surface-card border border-border-subtle rounded-2xl p-4 text-center space-y-2">
+        <div class="w-16 h-16 rounded-full bg-sky-500/20 border-2 border-sky-500/40 flex items-center justify-center text-sky-400 text-3xl font-bold mx-auto">
+          <iconify-icon icon="solar:user-bold"></iconify-icon>
+        </div>
+        <div>
+          <div class="text-lg font-extrabold text-white">{{ staff_name }}</div>
+          <div class="text-xs text-sky-400 font-mono">@{{ user.username }} • Role: {{ staff_role|capitalize }}</div>
+        </div>
+      </div>
+
+      <!-- Permissions card -->
+      <div class="bg-surface-card border border-border-subtle rounded-2xl p-4 space-y-2.5">
+        <div class="text-xs font-bold text-neutral-300 uppercase tracking-wider">Water Permissions</div>
+        <div class="space-y-2 text-xs">
+          <div class="flex items-center justify-between py-1 border-b border-border-subtle">
+            <span class="text-neutral-400">Create Table Orders</span>
+            <span class="text-emerald-400 font-bold flex items-center gap-1"><iconify-icon icon="solar:check-circle-bold"></iconify-icon> Enabled</span>
+          </div>
+          <div class="flex items-center justify-between py-1 border-b border-border-subtle">
+            <span class="text-neutral-400">Add Items to Active Orders</span>
+            <span class="text-emerald-400 font-bold flex items-center gap-1"><iconify-icon icon="solar:check-circle-bold"></iconify-icon> Enabled</span>
+          </div>
+          <div class="flex items-center justify-between py-1">
+            <span class="text-neutral-400">Create Custom Open Items</span>
+            <span class="text-emerald-400 font-bold flex items-center gap-1"><iconify-icon icon="solar:check-circle-bold"></iconify-icon> Enabled</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile App & APK Download Card -->
+      <div class="bg-surface-card border border-border-subtle rounded-2xl p-4 space-y-2.5">
+        <div class="text-xs font-bold text-neutral-300 uppercase tracking-wider flex items-center justify-between">
+          <span>Mobile App &amp; APK</span>
+          <span class="text-[10px] font-mono text-sky-400 font-bold">v{{ app_config.app_version if app_config else '1.0.0' }}</span>
+        </div>
+        <div class="space-y-2">
+          <a href="/api/water/download-apk" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs active:scale-95 transition">
+            <iconify-icon icon="solar:smartphone-2-bold" class="text-base"></iconify-icon>
+            <span>Download Android APK</span>
+          </a>
+          <button onclick="triggerPWAInstall()" id="btn-profile-pwa" class="w-full bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 text-xs active:scale-95 transition">
+            <iconify-icon icon="solar:add-circle-linear" class="text-base"></iconify-icon>
+            <span>Add / Install to Home Screen</span>
+          </button>
+          <a href="/water/download" class="block text-center text-[11px] text-neutral-400 hover:text-white pt-1 underline">
+            View Download Portal &amp; Instructions
+          </a>
+        </div>
+      </div>
+
+      <!-- Logout button -->
+      <a href="/logout" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition">
+        <iconify-icon icon="solar:logout-2-linear" class="text-lg"></iconify-icon>
+        <span>Logout from Water Panel</span>
+      </a>
+    </section>
+
+  </main>
+
+  <!-- ════════════════════════════════════════════════════════════
+       3. STICKY BOTTOM CART BAR (ALWAYS ACCESSIBLE WHEN CART > 0)
+       ════════════════════════════════════════════════════════════ -->
+  <div id="sticky-cart-bar" class="hidden fixed bottom-16 left-0 right-0 max-w-md mx-auto px-3 z-40">
+    <div class="bg-gradient-to-r from-sky-600 to-sky-500 text-white rounded-2xl p-3.5 flex items-center justify-between shadow-xl shadow-sky-950/60 border border-sky-400/40">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg font-bold">
+          <iconify-icon icon="solar:cart-large-4-bold"></iconify-icon>
+        </div>
+        <div>
+          <div class="text-xs text-sky-100 font-medium"><span id="bar-items-count">0</span> Items in Cart</div>
+          <div id="bar-total-amount" class="text-base font-black font-mono">RM 0.00</div>
+        </div>
+      </div>
+      <button onclick="openCartDrawer()" class="bg-white text-sky-700 font-extrabold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow active:scale-95 transition">
+        <span>View Cart</span>
+        <iconify-icon icon="solar:arrow-right-linear" class="text-sm"></iconify-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       4. FIXED BOTTOM NAVIGATION BAR
+       ════════════════════════════════════════════════════════════ -->
+  <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#10121A] border-t border-border-subtle bottom-nav-safe flex items-center justify-around px-2 py-1.5 z-30">
+    <button onclick="switchView('view-home')" id="nav-btn-home" class="nav-btn flex flex-col items-center gap-0.5 text-sky-400 py-1 px-2.5 transition">
+      <iconify-icon icon="solar:home-2-bold" class="text-xl"></iconify-icon>
+      <span class="text-[10px] font-bold">Home</span>
+    </button>
+
+    <button onclick="switchView('view-tables')" id="nav-btn-tables" class="nav-btn flex flex-col items-center gap-0.5 text-neutral-400 hover:text-white py-1 px-2.5 transition">
+      <iconify-icon icon="solar:chair-bold" class="text-xl"></iconify-icon>
+      <span class="text-[10px] font-medium">Tables</span>
+    </button>
+
+    <!-- Elevated Center Action: + New Order -->
+    <button onclick="startNewOrderFlow()" class="flex flex-col items-center -mt-5 transition active:scale-90">
+      <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-sky-400 text-white flex items-center justify-center text-2xl shadow-lg shadow-sky-600/50 border-2 border-[#10121A]">
+        <iconify-icon icon="solar:add-circle-bold"></iconify-icon>
+      </div>
+      <span class="text-[10px] font-bold text-sky-400 mt-0.5">Order</span>
+    </button>
+
+    <button onclick="switchView('view-my-orders')" id="nav-btn-my-orders" class="nav-btn flex flex-col items-center gap-0.5 text-neutral-400 hover:text-white py-1 px-2.5 transition">
+      <iconify-icon icon="solar:clipboard-list-bold" class="text-xl"></iconify-icon>
+      <span class="text-[10px] font-medium">My Orders</span>
+    </button>
+
+    <button onclick="switchView('view-profile')" id="nav-btn-profile" class="nav-btn flex flex-col items-center gap-0.5 text-neutral-400 hover:text-white py-1 px-2.5 transition">
+      <iconify-icon icon="solar:user-circle-bold" class="text-xl"></iconify-icon>
+      <span class="text-[10px] font-medium">Profile</span>
+    </button>
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════════════
+       4.5 ITEM CUSTOMIZATION & ADDONS DRAWER (PORTIONS & ADDONS)
+       ════════════════════════════════════════════════════════════ -->
+  <div id="item-customize-backdrop" onclick="closeItemCustomizeDrawer()" class="hidden fixed inset-0 bg-black/75 backdrop-blur-xs z-50 transition-opacity duration-300"></div>
+
+  <div id="item-customize-drawer" class="hidden fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#141620] border-t border-border-subtle rounded-t-3xl bottom-nav-safe z-50 max-h-[90vh] flex flex-col shadow-2xl sheet-up">
+    <!-- Handle & Title -->
+    <div class="p-4 pb-2 border-b border-border-subtle flex-shrink-0">
+      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-3"></div>
+      <div class="flex items-start justify-between">
+        <div>
+          <div id="modal-item-category" class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Category</div>
+          <h3 id="modal-item-name" class="text-base font-black text-white leading-tight mt-0.5">Item Name</h3>
+          <p id="modal-item-desc" class="text-[11px] text-neutral-400 mt-0.5 line-clamp-2"></p>
+        </div>
+        <button onclick="closeItemCustomizeDrawer()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 flex items-center justify-center text-base">
+          <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Options Body -->
+    <div class="flex-1 min-h-0 overflow-y-auto scrollable custom-scroll p-4 space-y-4">
+      <!-- 1. Portion Selection (Full vs Half) -->
+      <div id="modal-portion-section">
+        <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <iconify-icon icon="solar:pie-chart-2-bold" class="text-sky-400"></iconify-icon>
+          <span>Portion / Size</span>
+        </label>
+        <div class="grid grid-cols-2 gap-2" id="modal-portion-options">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- 2. Add-ons Selection -->
+      <div id="modal-addons-section">
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide flex items-center gap-1.5">
+            <iconify-icon icon="solar:add-circle-bold" class="text-accent"></iconify-icon>
+            <span>Add-ons / Extras</span>
+          </label>
+          <span id="modal-addons-selected-count" class="text-[10px] text-sky-400 font-mono font-bold">0 selected</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2" id="modal-addons-list">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- 3. Quick Preparation Notes -->
+      <div>
+        <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <iconify-icon icon="solar:notes-bold" class="text-neutral-400"></iconify-icon>
+          <span>Special Instructions / Notes</span>
+        </label>
+        <div class="flex flex-wrap gap-1.5 mb-2" id="quick-note-chips">
+          <button type="button" onclick="appendQuickNote('Less Spicy')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">Less Spicy</button>
+          <button type="button" onclick="appendQuickNote('Extra Spicy')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">Extra Spicy</button>
+          <button type="button" onclick="appendQuickNote('No Onion')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">No Onion</button>
+          <button type="button" onclick="appendQuickNote('Less Ice')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">Less Ice</button>
+          <button type="button" onclick="appendQuickNote('Hot')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">Hot</button>
+        </div>
+        <input type="text" id="modal-item-notes" placeholder="e.g. Well done, no ice, extra spicy..." class="w-full bg-[#0E1017] border border-border-subtle rounded-xl px-3 py-2.5 text-xs text-white placeholder-neutral-500 outline-none focus:border-sky-500">
+      </div>
+
+      <!-- 4. Quantity Stepper -->
+      <div class="flex items-center justify-between bg-[#10121A] border border-border-subtle rounded-2xl p-3">
+        <span class="text-xs font-bold text-white uppercase tracking-wider">Quantity</span>
+        <div class="flex items-center bg-[#1B1E28] border border-border-subtle rounded-xl overflow-hidden shadow-xs">
+          <button type="button" onclick="adjustCustomQty(-1)" class="w-9 h-9 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-lg active:scale-90">-</button>
+          <span id="modal-item-qty" class="w-10 text-center text-sm font-bold font-mono text-white">1</span>
+          <button type="button" onclick="adjustCustomQty(1)" class="w-9 h-9 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-lg active:scale-90">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Sticky Action Button -->
+    <div class="p-4 bg-[#10121A] border-t border-border-subtle flex-shrink-0">
+      <button type="button" onclick="confirmAddItemWithCustomization()" class="w-full bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white font-extrabold py-3.5 px-4 rounded-2xl flex items-center justify-between shadow-xl shadow-sky-950/60 active:scale-[0.98] transition">
+        <div class="flex items-center gap-2">
+          <iconify-icon icon="solar:cart-large-4-bold" class="text-xl"></iconify-icon>
+          <span class="text-sm">ADD TO ORDER</span>
+        </div>
+        <div id="modal-item-total-price" class="text-base font-black font-mono">RM 0.00</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       5. SLIDE-UP CART REVIEW DRAWER (BOTTOM SHEET)
+       ════════════════════════════════════════════════════════════ -->
+  <div id="cart-drawer-backdrop" onclick="closeCartDrawer()" class="hidden fixed inset-0 bg-black/70 backdrop-blur-xs z-50 transition-opacity duration-300"></div>
+
+  <div id="cart-drawer" class="hidden fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#141620] border-t border-border-subtle rounded-t-3xl bottom-nav-safe z-50 max-h-[88vh] flex flex-col shadow-2xl sheet-up">
+    <!-- Grab Handle & Title -->
+    <div class="p-4 pb-2 border-b border-border-subtle flex-shrink-0">
+      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-3"></div>
+      <div class="flex items-center justify-between">
+        <div>
+          <div id="cart-drawer-mode" class="text-xs font-bold text-sky-400 uppercase tracking-wider">New Order Review</div>
+          <div id="cart-drawer-table" class="text-lg font-black text-white leading-tight">Table 12</div>
+        </div>
+        <button onclick="closeCartDrawer()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 flex items-center justify-center text-base">
+          <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Items List (Scrollable) -->
+    <div id="cart-items-scroll" class="flex-1 min-h-0 overflow-y-auto scrollable custom-scroll p-4 space-y-3 max-h-[50vh]">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Bill Summary & Action Buttons -->
+    <div class="p-4 bg-[#10121A] border-t border-border-subtle flex-shrink-0 space-y-3">
+      <!-- Optional Note -->
+      <input type="text" id="order-note-input" placeholder="Add preparation notes (e.g. Less ice, warm water)..." class="w-full bg-surface-card border border-border-subtle rounded-xl px-3 py-2 text-xs text-white placeholder-neutral-500 outline-none focus:border-sky-500">
+
+      <!-- Financials -->
+      <div class="space-y-1 text-xs text-neutral-400">
+        <div class="flex justify-between">
+          <span>Subtotal</span>
+          <span id="cart-subtotal" class="font-mono text-white">RM 0.00</span>
+        </div>
+        <div class="flex justify-between">
+          <span>SST (6%)</span>
+          <span id="cart-tax" class="font-mono text-white">RM 0.00</span>
+        </div>
+        <div class="flex justify-between text-sm font-extrabold text-white pt-1 border-t border-border-subtle">
+          <span>Grand Total</span>
+          <span id="cart-grand-total" class="font-mono text-emerald-400">RM 0.00</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-2 gap-2">
+        <button onclick="closeCartDrawer()" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1 active:scale-95 transition">
+          <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
+          <span>+ Add More Items</span>
+        </button>
+
+        <button onclick="openConfirmationModal()" id="cart-submit-btn" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-extrabold py-3 rounded-xl text-xs flex items-center justify-center gap-1 shadow-lg shadow-sky-950/50 active:scale-95 transition">
+          <iconify-icon icon="solar:check-circle-bold"></iconify-icon>
+          <span id="cart-submit-label">Submit Order</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       6. ORDER CONFIRMATION MODAL
+       ════════════════════════════════════════════════════════════ -->
+  <div id="confirm-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 fade-in">
+    <div class="bg-[#161822] border border-border-subtle rounded-3xl p-5 w-full max-w-xs space-y-4 text-center scale-in shadow-2xl">
+      <div class="w-12 h-12 rounded-2xl bg-sky-500/20 border border-sky-500/40 text-sky-400 flex items-center justify-center text-2xl mx-auto">
+        <iconify-icon icon="solar:question-circle-bold"></iconify-icon>
+      </div>
+
+      <div>
+        <h3 id="confirm-modal-title" class="text-base font-extrabold text-white">Confirm Order</h3>
+        <p id="confirm-modal-desc" class="text-xs text-neutral-400 mt-1">Are you sure you want to send this order to POS?</p>
+      </div>
+
+      <div id="confirm-modal-preview" class="bg-surface-card border border-border-subtle rounded-xl p-3 text-left text-xs space-y-1">
+        <!-- Details preview -->
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="closeConfirmationModal()" class="w-full bg-white/5 hover:bg-white/10 text-neutral-300 font-bold py-2.5 rounded-xl text-xs border border-white/10 active:scale-95 transition">
+          Cancel
+        </button>
+        <button onclick="executeOrderSubmission()" id="confirm-submit-btn" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shadow-md active:scale-95 transition">
+          <span>Yes, Submit</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       7. OPEN / CUSTOM ITEM MODAL
+       ════════════════════════════════════════════════════════════ -->
+  <div id="open-item-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 fade-in">
+    <div class="bg-[#161822] border border-border-subtle rounded-3xl p-5 w-full max-w-sm space-y-3.5 scale-in shadow-2xl">
+      <div class="flex items-center justify-between pb-2 border-b border-border-subtle">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-accent/10 text-accent flex items-center justify-center text-lg">
+            <iconify-icon icon="solar:pen-new-square-bold"></iconify-icon>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Add Custom / Open Item</h3>
+            <p class="text-[11px] text-neutral-400">Enter custom water, beverage or food</p>
+          </div>
+        </div>
+        <button onclick="closeOpenItemModal()" class="text-neutral-400 hover:text-white">
+          <iconify-icon icon="solar:close-circle-bold" class="text-xl"></iconify-icon>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div>
+          <label class="block text-neutral-400 font-semibold mb-1">Item Name *</label>
+          <input type="text" id="open-item-name" placeholder="e.g. Special Lime Water / Fresh Juice" class="w-full bg-surface-card border border-border-subtle rounded-xl px-3 py-2 text-white placeholder-neutral-500 outline-none focus:border-accent">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-neutral-400 font-semibold mb-1">Price (RM) *</label>
+            <input type="number" step="0.5" min="0" id="open-item-price" placeholder="4.50" class="w-full bg-surface-card border border-border-subtle rounded-xl px-3 py-2 text-white font-mono placeholder-neutral-500 outline-none focus:border-accent">
+          </div>
+          <div>
+            <label class="block text-neutral-400 font-semibold mb-1">Quantity</label>
+            <div class="flex items-center border border-border-subtle rounded-xl bg-surface-card overflow-hidden">
+              <button onclick="adjustOpenItemQty(-1)" class="w-8 py-2 text-neutral-300 hover:bg-white/5 font-bold">-</button>
+              <input type="number" id="open-item-qty" value="1" min="1" class="flex-1 bg-transparent text-center text-white font-mono outline-none">
+              <button onclick="adjustOpenItemQty(1)" class="w-8 py-2 text-neutral-300 hover:bg-white/5 font-bold">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-neutral-400 font-semibold mb-1">Notes / Preparation</label>
+          <input type="text" id="open-item-notes" placeholder="e.g. Less sugar, extra lemon slices" class="w-full bg-surface-card border border-border-subtle rounded-xl px-3 py-2 text-white placeholder-neutral-500 outline-none focus:border-accent">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <button onclick="closeOpenItemModal()" class="w-full bg-white/5 hover:bg-white/10 text-neutral-300 font-bold py-2.5 rounded-xl text-xs border border-white/10 active:scale-95 transition">
+          Cancel
+        </button>
+        <button onclick="confirmAddOpenItem()" class="w-full bg-accent hover:bg-accent-hover text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 shadow active:scale-95 transition">
+          <iconify-icon icon="solar:cart-plus-bold"></iconify-icon>
+          <span>Add to Cart</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       8. ADVANCED ORDER TIMELINE & AUDIT MODAL
+       ════════════════════════════════════════════════════════════ -->
+  <div id="timeline-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 fade-in">
+    <div class="bg-[#161822] border border-border-subtle rounded-3xl p-5 w-full max-w-sm max-h-[80vh] flex flex-col space-y-3 scale-in shadow-2xl">
+      <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-shrink-0">
+        <div>
+          <h3 id="timeline-modal-title" class="text-sm font-bold text-white">Order Timeline &amp; History</h3>
+          <p id="timeline-modal-sub" class="text-[11px] text-neutral-400">Audit trail of order creation &amp; additions</p>
+        </div>
+        <button onclick="closeTimelineModal()" class="text-neutral-400 hover:text-white">
+          <iconify-icon icon="solar:close-circle-bold" class="text-xl"></iconify-icon>
+        </button>
+      </div>
+
+      <div id="timeline-modal-events" class="flex-1 overflow-y-auto custom-scroll space-y-3 py-1">
+        <!-- Populated by JS -->
+      </div>
+
+      <button onclick="closeTimelineModal()" class="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-2.5 rounded-xl text-xs border border-white/10 flex-shrink-0 active:scale-95 transition">
+        Close Timeline
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       9. TOAST NOTIFICATION
+       ════════════════════════════════════════════════════════════ -->
+  <div id="app-toast" class="hidden fixed top-4 left-4 right-4 max-w-md mx-auto z-50 p-3.5 rounded-2xl shadow-xl flex items-center gap-3 border transition-all transform duration-300">
+    <iconify-icon id="toast-icon" icon="solar:check-circle-bold" class="text-xl flex-shrink-0"></iconify-icon>
+    <div class="flex-1 text-xs font-semibold leading-snug" id="toast-message"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       10. CLIENT STATE & APPLICATION LOGIC
+       ════════════════════════════════════════════════════════════ -->
+  <script>
+    // Global Application State
+    const AppState = {
+      user: {
+        id: {{ user.id }},
+        username: "{{ user.username }}",
+        name: "{{ staff_name }}",
+        role: "{{ staff_role }}"
+      },
+      currentView: 'view-home',
+      tables: [],
+      menuItems: [],
+      menuCategories: ['All'],
+      activeCategory: 'All',
+      tableFilter: 'all',
+      // Addons catalog
+      addons: [],
+      // Item Customization state
+      customizingItem: null,
+      customPortion: 'full', // 'full' or 'half'
+      customQty: 1,
+      customAddons: [], // array of selected addon objects [{name, price}]
+      customNotes: '',
+      // Order Flow State
+      mode: 'new_order', // 'new_order' or 'add_items'
+      selectedTable: null,
+      selectedOrder: null, // order object when in 'add_items' mode
+      cart: [], // items being ordered or added
+      isSubmitting: false,
+      soundEnabled: true,
+      audioCtx: null
+    };
+
+    // ── Audio Feedback Synthesizer ──
+    function initAudio() {
+      if (!AppState.audioCtx) {
+        AppState.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+    function playChime(type) {
+      if (!AppState.soundEnabled) return;
+      try {
+        initAudio();
+        const ctx = AppState.audioCtx;
+        if (ctx.state === 'suspended') ctx.resume();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const now = ctx.currentTime;
+        if (type === 'success') {
+          osc.frequency.setValueAtTime(587.33, now); // D5
+          osc.frequency.exponentialRampToValueAtTime(880.00, now + 0.15); // A5
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'add') {
+          osc.frequency.setValueAtTime(659.25, now); // E5
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        }
+      } catch (e) {}
+    }
+    function toggleAudio() {
+      AppState.soundEnabled = !AppState.soundEnabled;
+      const icon = document.getElementById('sound-icon');
+      if (AppState.soundEnabled) {
+        icon.setAttribute('icon', 'solar:volume-loud-bold');
+        showToast('Sound enabled', 'info');
+      } else {
+        icon.setAttribute('icon', 'solar:volume-cross-bold');
+        showToast('Sound muted', 'info');
+      }
+    }
+
+    // ── Toast Notifications ──
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('app-toast');
+      const icon = document.getElementById('toast-icon');
+      const msgEl = document.getElementById('toast-message');
+
+      msgEl.textContent = msg;
+      if (type === 'success') {
+        toast.className = 'fixed top-4 left-4 right-4 max-w-md mx-auto z-50 p-3.5 rounded-2xl shadow-xl flex items-center gap-3 border bg-emerald-950/90 border-emerald-500/40 text-emerald-200';
+        icon.setAttribute('icon', 'solar:check-circle-bold');
+      } else if (type === 'error') {
+        toast.className = 'fixed top-4 left-4 right-4 max-w-md mx-auto z-50 p-3.5 rounded-2xl shadow-xl flex items-center gap-3 border bg-red-950/90 border-red-500/40 text-red-200';
+        icon.setAttribute('icon', 'solar:danger-triangle-bold');
+      } else {
+        toast.className = 'fixed top-4 left-4 right-4 max-w-md mx-auto z-50 p-3.5 rounded-2xl shadow-xl flex items-center gap-3 border bg-sky-950/90 border-sky-500/40 text-sky-200';
+        icon.setAttribute('icon', 'solar:info-circle-bold');
+      }
+
+      toast.classList.remove('hidden');
+      setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+    }
+
+    // ── Screen / View Switcher ──
+    function switchView(viewId) {
+      document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+      const target = document.getElementById(viewId);
+      if (target) target.classList.remove('hidden');
+      AppState.currentView = viewId;
+
+      // Update bottom nav active state
+      document.querySelectorAll('.nav-btn').forEach(b => {
+        b.classList.remove('text-sky-400');
+        b.classList.add('text-neutral-400');
+      });
+      if (viewId === 'view-home') document.getElementById('nav-btn-home')?.classList.replace('text-neutral-400', 'text-sky-400');
+      if (viewId === 'view-tables') document.getElementById('nav-btn-tables')?.classList.replace('text-neutral-400', 'text-sky-400');
+      if (viewId === 'view-my-orders') document.getElementById('nav-btn-my-orders')?.classList.replace('text-neutral-400', 'text-sky-400');
+      if (viewId === 'view-profile') document.getElementById('nav-btn-profile')?.classList.replace('text-neutral-400', 'text-sky-400');
+
+      // Scroll top
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+
+      // Load data on view activation
+      if (viewId === 'view-tables' || viewId === 'view-home') loadTablesData();
+      if (viewId === 'view-active') loadActiveOrdersView();
+      if (viewId === 'view-my-orders') loadMyOrdersView();
+    }
+
+    // ── New Order Flow (Step 1: Select Table) ──
+    function startNewOrderFlow() {
+      AppState.mode = 'new_order';
+      AppState.selectedOrder = null;
+      AppState.cart = [];
+      updateStickyCartBar();
+      switchView('view-tables');
+      showToast('Step 1: Select a table to begin order', 'info');
+    }
+
+    // ── Fetching Table Statuses with Active Orders ──
+    async function loadTablesData() {
+      try {
+        const res = await fetch('/api/water/tables');
+        if (!res.ok) return;
+        AppState.tables = await res.json();
+        renderTablesGrid();
+        renderHomeActiveList();
+      } catch (e) {
+        console.error('Error fetching tables:', e);
+      }
+    }
+
+    // ── Render Table Cards Grid ──
+    function renderTablesGrid() {
+      const grid = document.getElementById('tables-grid');
+      if (!grid) return;
+
+      let filtered = AppState.tables;
+      if (AppState.tableFilter === 'free') {
+        filtered = AppState.tables.filter(t => !t.has_active_order);
+      } else if (AppState.tableFilter === 'occupied') {
+        filtered = AppState.tables.filter(t => t.has_active_order);
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-2 p-8 text-center text-neutral-500 text-xs bg-surface-card rounded-2xl border border-border-subtle">No tables match filter</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(t => {
+        const isOccupied = !!t.has_active_order;
+        const act = t.active_order;
+
+        if (isOccupied && act) {
+          // Table with active order
+          return `
+            <div onclick="handleTableTap(${t.number})" class="bg-surface-card hover:bg-surface-hover border border-sky-500/30 rounded-2xl p-3.5 flex flex-col justify-between space-y-2.5 cursor-pointer active:scale-[0.98] transition shadow-sm">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="text-xs font-semibold text-neutral-400">Table</div>
+                  <div class="text-xl font-black text-white font-mono leading-none mt-0.5">${String(t.number).padStart(2, '0')}</div>
+                </div>
+                <span class="bg-sky-500/20 text-sky-400 border border-sky-500/40 text-[9px] uppercase font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+                  Active
+                </span>
+              </div>
+              
+              <div class="bg-black/30 rounded-xl p-2 text-[11px] space-y-0.5">
+                <div class="text-neutral-300 font-bold truncate">#${act.order_no}</div>
+                <div class="text-neutral-400 flex justify-between">
+                  <span>${act.item_count} Items</span>
+                  <span class="font-mono font-bold text-emerald-400">RM ${Number(act.total).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <button class="w-full bg-sky-600/30 hover:bg-sky-600/50 text-sky-200 border border-sky-500/30 text-xs font-bold py-1.5 rounded-xl flex items-center justify-center gap-1">
+                <iconify-icon icon="solar:bolt-circle-bold"></iconify-icon>
+                <span>View / Add Items</span>
+              </button>
+            </div>
+          `;
+        } else {
+          // Available table
+          return `
+            <div onclick="handleTableTap(${t.number})" class="bg-surface-card hover:bg-surface-hover border border-border-subtle hover:border-emerald-500/40 rounded-2xl p-3.5 flex flex-col justify-between space-y-3 cursor-pointer active:scale-[0.98] transition">
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="text-xs font-semibold text-neutral-400">Table</div>
+                  <div class="text-xl font-black text-white font-mono leading-none mt-0.5">${String(t.number).padStart(2, '0')}</div>
+                </div>
+                <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] uppercase font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Available
+                </span>
+              </div>
+
+              <div class="text-[11px] text-neutral-500">
+                Ready for guests
+              </div>
+
+              <button class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold py-1.5 rounded-xl flex items-center justify-center gap-1">
+                <iconify-icon icon="solar:add-circle-linear"></iconify-icon>
+                <span>Start Order</span>
+              </button>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    // ── Table Filter Handler ──
+    function setTableFilter(filter) {
+      AppState.tableFilter = filter;
+      document.getElementById('tbl-filter-all').className = filter === 'all' ? 'px-3 py-1 rounded-full text-xs font-bold bg-sky-500 text-white shadow-sm transition' : 'px-3 py-1 rounded-full text-xs font-semibold bg-white/5 text-neutral-300 hover:bg-white/10 transition';
+      document.getElementById('tbl-filter-free').className = filter === 'free' ? 'px-3 py-1 rounded-full text-xs font-bold bg-sky-500 text-white shadow-sm transition' : 'px-3 py-1 rounded-full text-xs font-semibold bg-white/5 text-neutral-300 hover:bg-white/10 transition';
+      document.getElementById('tbl-filter-occupied').className = filter === 'occupied' ? 'px-3 py-1 rounded-full text-xs font-bold bg-sky-500 text-white shadow-sm transition' : 'px-3 py-1 rounded-full text-xs font-semibold bg-white/5 text-neutral-300 hover:bg-white/10 transition';
+      renderTablesGrid();
+    }
+
+    // ── SMART TABLE TAP LOGIC ──
+    function handleTableTap(tableNum) {
+      const table = AppState.tables.find(t => t.number === tableNum);
+      if (!table) return;
+
+      if (table.has_active_order && table.active_order) {
+        // SMART BRANCH A: Table already has active order -> Open Existing Order Screen
+        openExistingOrderScreen(table);
+      } else {
+        // SMART BRANCH B: Available Table -> Start New Order Mode & Open Menu
+        AppState.mode = 'new_order';
+        AppState.selectedTable = table.number;
+        AppState.selectedOrder = null;
+        AppState.cart = [];
+        updateStickyCartBar();
+        openMenuScreenForNewOrder(table.number);
+      }
+    }
+
+    // ── Open Menu for New Order ──
+    function openMenuScreenForNewOrder(tableNum) {
+      document.getElementById('menu-mode-title').textContent = `New Order — Table ${tableNum}`;
+      document.getElementById('menu-mode-sub').textContent = 'Select items for new dine-in ticket';
+      document.getElementById('cart-drawer-mode').textContent = 'New Order Review';
+      document.getElementById('cart-drawer-table').textContent = `Table ${tableNum}`;
+      document.getElementById('cart-submit-label').textContent = 'Submit Order';
+      switchView('view-menu');
+    }
+
+    // ── Open Existing Order Screen ──
+    function openExistingOrderScreen(table) {
+      AppState.selectedTable = table.number;
+      AppState.selectedOrder = table.active_order;
+
+      document.getElementById('ex-table-title').textContent = `Table ${String(table.number).padStart(2, '0')}`;
+      document.getElementById('ex-order-meta').textContent = `Order #${table.active_order.order_no} • ${table.active_order.status.toUpperCase()}`;
+      document.getElementById('ex-order-total').textContent = `RM ${Number(table.active_order.total).toFixed(2)}`;
+      document.getElementById('ex-items-count').textContent = `${table.active_order.item_count} Items`;
+
+      const list = document.getElementById('ex-items-list');
+      list.innerHTML = (table.active_order.items || []).map(i => `
+        <div class="py-2 flex items-center justify-between text-xs">
+          <div>
+            <div class="font-bold text-white">${i.name}</div>
+            <div class="text-neutral-400 text-[11px]">${i.qty} × RM ${Number(i.unit_price).toFixed(2)}</div>
+          </div>
+          <div class="font-mono font-bold text-slate-200">RM ${(Number(i.qty) * Number(i.unit_price)).toFixed(2)}</div>
+        </div>
+      `).join('') || `<div class="py-3 text-center text-neutral-500 text-xs">No item details</div>`;
+
+      switchView('view-existing-order');
+    }
+
+    // ── Start Add Items Flow from Existing Screen ──
+    function startAddItemsFlowFromExisting() {
+      if (!AppState.selectedOrder) return;
+      AppState.mode = 'add_items';
+      AppState.cart = [];
+      updateStickyCartBar();
+
+      document.getElementById('menu-mode-title').textContent = `Adding to Order #${AppState.selectedOrder.order_no} (Table ${AppState.selectedTable})`;
+      document.getElementById('menu-mode-sub').textContent = 'Items will be appended to active bill';
+      document.getElementById('cart-drawer-mode').textContent = `Add to Order #${AppState.selectedOrder.order_no}`;
+      document.getElementById('cart-drawer-table').textContent = `Table ${AppState.selectedTable}`;
+      document.getElementById('cart-submit-label').textContent = 'Add to Existing Order';
+
+      switchView('view-menu');
+      showToast('Select additional items to append to this order', 'info');
+    }
+
+    function cancelMenuMode() {
+      switchView('view-tables');
+    }
+
+    // ── Fetch Menu Catalog ──
+    async function loadMenuData() {
+      try {
+        const res = await fetch('/api/water/menu');
+        if (!res.ok) return;
+        const data = await res.json();
+        AppState.menuItems = data.items || [];
+        AppState.menuCategories = ['All', ...(data.categories || [])];
+        AppState.addons = data.addons || [];
+        renderMobileMenuItems();
+      } catch (e) {
+        console.error('Error loading menu:', e);
+      }
+    }
+
+    // ── Render Menu Cards (Mobile Optimized with Full / Half & Addons) ──
+    function renderMobileMenuItems() {
+      const container = document.getElementById('mobile-menu-list');
+      if (!container) return;
+
+      const q = (document.getElementById('mobile-search-input')?.value || '').trim().toLowerCase();
+      let filtered = AppState.menuItems;
+
+      if (AppState.activeCategory !== 'All') {
+        filtered = filtered.filter(i => i.category === AppState.activeCategory);
+      }
+      if (q) {
+        filtered = filtered.filter(i => (i.name || '').toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q));
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-neutral-500 text-xs bg-surface-card rounded-2xl border border-border-subtle">No items found</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => {
+        const hasHalf = item.price_half != null && Number(item.price_half) > 0;
+        const hasFull = item.price_full != null && Number(item.price_full) > 0;
+        const isDual = hasHalf && hasFull;
+
+        if (isDual) {
+          // Dual portion item (Half / Full)
+          const halfInCart = AppState.cart.filter(c => c.id === item.id && c.size === 'half' && !c.open_item).reduce((s, c) => s + c.qty, 0);
+          const fullInCart = AppState.cart.filter(c => c.id === item.id && (c.size === 'full' || !c.size) && !c.open_item).reduce((s, c) => s + c.qty, 0);
+
+          return `
+            <div class="bg-surface-card border border-border-subtle hover:border-sky-500/30 rounded-2xl p-3.5 space-y-2.5 shadow-xs transition">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-bold text-white leading-tight truncate">${item.name}</div>
+                  <div class="text-[11px] text-neutral-400 flex items-center gap-2 mt-0.5 font-mono">
+                    <span class="text-sky-400 font-semibold">Half: RM ${Number(item.price_half).toFixed(2)}</span>
+                    <span class="text-neutral-600">•</span>
+                    <span class="text-emerald-400 font-semibold">Full: RM ${Number(item.price_full).toFixed(2)}</span>
+                  </div>
+                  ${item.category ? `<span class="text-[9px] uppercase font-semibold text-neutral-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded mt-1 inline-block">${item.category}</span>` : ''}
+                </div>
+                <button type="button" onclick="openItemCustomizeDrawer(${item.id})" class="px-2.5 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-bold flex items-center gap-1 active:scale-95 transition flex-shrink-0" title="Customize portion, add-ons & notes">
+                  <iconify-icon icon="solar:tuning-square-2-bold" class="text-sm"></iconify-icon>
+                  <span class="text-[11px]">Options</span>
+                </button>
+              </div>
+
+              <!-- Quick Portion Selectors -->
+              <div class="grid grid-cols-2 gap-2 pt-0.5">
+                <!-- Half Button/Stepper -->
+                <div>
+                  ${halfInCart === 0 ? `
+                    <button type="button" onclick="quickAddPortion(${item.id}, 'half')" class="w-full py-1.5 px-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-bold flex items-center justify-between active:scale-95 transition">
+                      <span class="text-[10px] uppercase font-extrabold text-sky-400">Half</span>
+                      <span class="font-mono text-xs">RM ${Number(item.price_half).toFixed(2)}</span>
+                      <iconify-icon icon="solar:add-circle-linear" class="text-sm"></iconify-icon>
+                    </button>
+                  ` : `
+                    <div class="w-full flex items-center justify-between bg-[#1B1E28] border border-sky-500/40 rounded-xl px-2 py-0.5">
+                      <span class="text-[10px] uppercase font-black text-sky-400">Half</span>
+                      <div class="flex items-center">
+                        <button type="button" onclick="adjustPortionQty(${item.id}, 'half', -1)" class="w-6 h-6 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-xs active:scale-90">-</button>
+                        <span class="w-5 text-center text-xs font-bold font-mono text-white">${halfInCart}</span>
+                        <button type="button" onclick="adjustPortionQty(${item.id}, 'half', 1)" class="w-6 h-6 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-xs active:scale-90">+</button>
+                      </div>
+                    </div>
+                  `}
+                </div>
+
+                <!-- Full Button/Stepper -->
+                <div>
+                  ${fullInCart === 0 ? `
+                    <button type="button" onclick="quickAddPortion(${item.id}, 'full')" class="w-full py-1.5 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-between active:scale-95 transition">
+                      <span class="text-[10px] uppercase font-extrabold text-emerald-400">Full</span>
+                      <span class="font-mono text-xs">RM ${Number(item.price_full).toFixed(2)}</span>
+                      <iconify-icon icon="solar:add-circle-linear" class="text-sm"></iconify-icon>
+                    </button>
+                  ` : `
+                    <div class="w-full flex items-center justify-between bg-[#1B1E28] border border-emerald-500/40 rounded-xl px-2 py-0.5">
+                      <span class="text-[10px] uppercase font-black text-emerald-400">Full</span>
+                      <div class="flex items-center">
+                        <button type="button" onclick="adjustPortionQty(${item.id}, 'full', -1)" class="w-6 h-6 flex items-center justify-center text-emerald-400 hover:bg-white/5 font-bold text-xs active:scale-90">-</button>
+                        <span class="w-5 text-center text-xs font-bold font-mono text-white">${fullInCart}</span>
+                        <button type="button" onclick="adjustPortionQty(${item.id}, 'full', 1)" class="w-6 h-6 flex items-center justify-center text-emerald-400 hover:bg-white/5 font-bold text-xs active:scale-90">+</button>
+                      </div>
+                    </div>
+                  `}
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          // Single portion item
+          const price = item.price_full || item.price_half || 0;
+          const qtyInCart = AppState.cart.filter(c => c.id === item.id && !c.open_item).reduce((s, c) => s + c.qty, 0);
+
+          return `
+            <div class="bg-surface-card border border-border-subtle hover:border-sky-500/30 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs transition">
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-white leading-tight truncate">${item.name}</div>
+                <div class="text-[11px] text-neutral-400 font-mono mt-0.5">RM ${Number(price).toFixed(2)}</div>
+                ${item.category ? `<span class="text-[9px] uppercase font-semibold text-neutral-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded mt-1 inline-block">${item.category}</span>` : ''}
+              </div>
+
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                ${qtyInCart === 0 ? `
+                  <button type="button" onclick="addItemToCart(${item.id})" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 active:scale-95 transition">
+                    <iconify-icon icon="solar:add-circle-linear" class="text-sm"></iconify-icon>
+                    <span>Add</span>
+                  </button>
+                ` : `
+                  <div class="flex items-center bg-[#1B1E28] border border-sky-500/40 rounded-xl overflow-hidden shadow-xs">
+                    <button type="button" onclick="adjustItemQtyInCart(${item.id}, -1)" class="w-7 h-7 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-sm active:scale-90">-</button>
+                    <span class="w-6 text-center text-xs font-bold font-mono text-white">${qtyInCart}</span>
+                    <button type="button" onclick="adjustItemQtyInCart(${item.id}, 1)" class="w-7 h-7 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-sm active:scale-90">+</button>
+                  </div>
+                `}
+                <button type="button" onclick="openItemCustomizeDrawer(${item.id})" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 active:scale-95 transition" title="Add-ons & Notes">
+                  <iconify-icon icon="solar:tuning-square-2-bold" class="text-sky-400 text-sm"></iconify-icon>
+                </button>
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+    }
+
+    function setMenuCategory(cat) {
+      AppState.activeCategory = cat;
+      document.querySelectorAll('.cat-pill').forEach(b => {
+        b.className = 'cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-surface-card text-neutral-300 hover:text-white border border-border-subtle flex-shrink-0 transition';
+      });
+      const activeBtn = document.getElementById(`cat-pill-${cat}`);
+      if (activeBtn) {
+        activeBtn.className = 'cat-pill px-3 py-1 rounded-full text-xs font-bold bg-accent text-white shadow-sm flex-shrink-0 transition';
+      }
+      renderMobileMenuItems();
+    }
+
+    function filterMenuItemsMobile() {
+      renderMobileMenuItems();
+    }
+
+    // ── Quick Portion Add & Adjust ──
+    function quickAddPortion(itemId, portion) {
+      const item = AppState.menuItems.find(i => i.id === itemId);
+      if (!item) return;
+
+      const price = portion === 'half' ? Number(item.price_half || 0) : Number(item.price_full || 0);
+
+      // Check if identical item (same id, same portion, no addons, empty notes) already in cart
+      const existing = AppState.cart.find(c => c.id === itemId && c.size === portion && (!c.addons || c.addons.length === 0) && !c.notes && !c.open_item);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        AppState.cart.push({
+          id: item.id,
+          name: item.name,
+          size: portion,
+          price: price,
+          qty: 1,
+          addons: [],
+          notes: '',
+          open_item: false
+        });
+      }
+
+      playChime('add');
+      renderMobileMenuItems();
+      updateStickyCartBar();
+    }
+
+    function adjustPortionQty(itemId, portion, delta) {
+      const idx = AppState.cart.findIndex(c => c.id === itemId && c.size === portion && (!c.addons || c.addons.length === 0) && !c.notes && !c.open_item);
+      if (idx === -1) {
+        if (delta > 0) quickAddPortion(itemId, portion);
+        return;
+      }
+
+      AppState.cart[idx].qty += delta;
+      if (AppState.cart[idx].qty <= 0) {
+        AppState.cart.splice(idx, 1);
+      }
+
+      playChime('add');
+      renderMobileMenuItems();
+      updateStickyCartBar();
+      renderCartDrawerItems();
+    }
+
+    // ── Single Portion Add & Stepper Operations ──
+    function addItemToCart(itemId) {
+      const item = AppState.menuItems.find(i => i.id === itemId);
+      if (!item) return;
+
+      const portion = (item.price_half && !item.price_full) ? 'half' : 'full';
+      const price = Number(item.price_full || item.price_half || 0);
+
+      const existing = AppState.cart.find(c => c.id === itemId && (!c.addons || c.addons.length === 0) && !c.notes && !c.open_item);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        AppState.cart.push({
+          id: item.id,
+          name: item.name,
+          price: price,
+          qty: 1,
+          size: portion,
+          addons: [],
+          notes: '',
+          open_item: false
+        });
+      }
+      playChime('add');
+      renderMobileMenuItems();
+      updateStickyCartBar();
+    }
+
+    function adjustItemQtyInCart(itemId, delta) {
+      const idx = AppState.cart.findIndex(c => c.id === itemId && (!c.addons || c.addons.length === 0) && !c.notes && !c.open_item);
+      if (idx === -1) return;
+
+      AppState.cart[idx].qty += delta;
+      if (AppState.cart[idx].qty <= 0) {
+        AppState.cart.splice(idx, 1);
+      }
+      playChime('add');
+      renderMobileMenuItems();
+      updateStickyCartBar();
+      renderCartDrawerItems();
+    }
+
+    // ── Item Customization Drawer Handlers (Portions & Addons) ──
+    function openItemCustomizeDrawer(itemId, preferredPortion = null) {
+      const item = AppState.menuItems.find(i => i.id === itemId);
+      if (!item) return;
+
+      AppState.customizingItem = item;
+      AppState.customQty = 1;
+      AppState.customAddons = [];
+      AppState.customNotes = '';
+
+      const hasHalf = item.price_half != null && Number(item.price_half) > 0;
+      const hasFull = item.price_full != null && Number(item.price_full) > 0;
+
+      if (preferredPortion) {
+        AppState.customPortion = preferredPortion;
+      } else if (hasHalf && hasFull) {
+        AppState.customPortion = 'full';
+      } else if (hasHalf) {
+        AppState.customPortion = 'half';
+      } else {
+        AppState.customPortion = 'full';
+      }
+
+      // Populate Header
+      document.getElementById('modal-item-category').textContent = item.category || 'Menu Item';
+      document.getElementById('modal-item-name').textContent = item.name;
+      document.getElementById('modal-item-desc').textContent = item.description || '';
+      document.getElementById('modal-item-notes').value = '';
+      document.getElementById('modal-item-qty').textContent = '1';
+
+      // Render Portion Options
+      renderCustomPortionSection();
+
+      // Render Add-ons List
+      renderCustomAddonsList();
+
+      // Update Total Price
+      updateCustomDrawerPrice();
+
+      // Show Drawer
+      document.getElementById('item-customize-backdrop').classList.remove('hidden');
+      document.getElementById('item-customize-drawer').classList.remove('hidden');
+    }
+
+    function closeItemCustomizeDrawer() {
+      document.getElementById('item-customize-backdrop').classList.add('hidden');
+      document.getElementById('item-customize-drawer').classList.add('hidden');
+      AppState.customizingItem = null;
+    }
+
+    function renderCustomPortionSection() {
+      const item = AppState.customizingItem;
+      const container = document.getElementById('modal-portion-options');
+      const section = document.getElementById('modal-portion-section');
+      if (!item || !container) return;
+
+      const hasHalf = item.price_half != null && Number(item.price_half) > 0;
+      const hasFull = item.price_full != null && Number(item.price_full) > 0;
+
+      if (hasHalf && hasFull) {
+        section.classList.remove('hidden');
+        container.className = 'grid grid-cols-2 gap-2';
+        container.innerHTML = `
+          <button type="button" onclick="setCustomPortion('half')" class="p-3 rounded-2xl border text-left flex flex-col justify-between transition ${AppState.customPortion === 'half' ? 'bg-sky-500/20 border-sky-400 text-white shadow-sm ring-1 ring-sky-400' : 'bg-surface-card border-border-subtle text-neutral-300 hover:border-white/20'}">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider">Half Portion</span>
+              ${AppState.customPortion === 'half' ? '<iconify-icon icon="solar:check-circle-bold" class="text-sky-400 text-base"></iconify-icon>' : ''}
+            </div>
+            <div class="text-sm font-black font-mono mt-1 ${AppState.customPortion === 'half' ? 'text-sky-300' : 'text-neutral-400'}">RM ${Number(item.price_half).toFixed(2)}</div>
+          </button>
+
+          <button type="button" onclick="setCustomPortion('full')" class="p-3 rounded-2xl border text-left flex flex-col justify-between transition ${AppState.customPortion === 'full' ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-sm ring-1 ring-emerald-400' : 'bg-surface-card border-border-subtle text-neutral-300 hover:border-white/20'}">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider">Full Portion</span>
+              ${AppState.customPortion === 'full' ? '<iconify-icon icon="solar:check-circle-bold" class="text-emerald-400 text-base"></iconify-icon>' : ''}
+            </div>
+            <div class="text-sm font-black font-mono mt-1 ${AppState.customPortion === 'full' ? 'text-emerald-300' : 'text-neutral-400'}">RM ${Number(item.price_full).toFixed(2)}</div>
+          </button>
+        `;
+      } else {
+        // Single portion
+        const price = item.price_full || item.price_half || 0;
+        section.classList.remove('hidden');
+        container.className = 'grid grid-cols-1';
+        container.innerHTML = `
+          <div class="p-3 rounded-2xl border bg-surface-card border-sky-500/30 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <iconify-icon icon="solar:check-circle-bold" class="text-sky-400 text-lg"></iconify-icon>
+              <span class="text-xs font-bold">Standard Portion</span>
+            </div>
+            <span class="text-sm font-black font-mono text-sky-300">RM ${Number(price).toFixed(2)}</span>
+          </div>
+        `;
+      }
+    }
+
+    function setCustomPortion(portion) {
+      AppState.customPortion = portion;
+      renderCustomPortionSection();
+      updateCustomDrawerPrice();
+    }
+
+    function renderCustomAddonsList() {
+      const container = document.getElementById('modal-addons-list');
+      const countEl = document.getElementById('modal-addons-selected-count');
+      if (!container) return;
+
+      if (!AppState.addons || AppState.addons.length === 0) {
+        container.innerHTML = `<div class="col-span-2 p-3 text-center text-neutral-500 text-xs bg-surface-card rounded-xl">No extra add-ons configured</div>`;
+        if (countEl) countEl.textContent = '0 selected';
+        return;
+      }
+
+      if (countEl) {
+        countEl.textContent = `${AppState.customAddons.length} selected`;
+      }
+
+      container.innerHTML = AppState.addons.map(addon => {
+        const isSelected = AppState.customAddons.some(a => a.name === addon.name);
+        return `
+          <button type="button" onclick="toggleCustomAddon('${addon.name.replace(/'/g, "\\'")}', ${addon.price})" class="p-2.5 rounded-xl border text-left flex items-center justify-between transition active:scale-95 ${isSelected ? 'bg-sky-500/20 border-sky-400 text-white shadow-xs' : 'bg-surface-card border-border-subtle text-neutral-300 hover:border-white/20'}">
+            <div class="min-w-0 pr-1">
+              <div class="text-xs font-bold truncate leading-tight">${addon.name}</div>
+              <div class="text-[10px] font-mono mt-0.5 ${isSelected ? 'text-sky-300 font-semibold' : 'text-neutral-400'}">+RM ${Number(addon.price).toFixed(2)}</div>
+            </div>
+            <div class="w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-sky-500 text-white' : 'border border-neutral-600'}">
+              ${isSelected ? '<iconify-icon icon="solar:check-read-linear" class="text-xs"></iconify-icon>' : ''}
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function toggleCustomAddon(addonName, addonPrice) {
+      const idx = AppState.customAddons.findIndex(a => a.name === addonName);
+      if (idx > -1) {
+        AppState.customAddons.splice(idx, 1);
+      } else {
+        AppState.customAddons.push({ name: addonName, price: Number(addonPrice) });
+      }
+      renderCustomAddonsList();
+      updateCustomDrawerPrice();
+    }
+
+    function appendQuickNote(txt) {
+      const input = document.getElementById('modal-item-notes');
+      if (!input) return;
+      const current = input.value.trim();
+      if (!current) {
+        input.value = txt;
+      } else if (!current.includes(txt)) {
+        input.value = current + ', ' + txt;
+      }
+      input.focus();
+    }
+
+    function adjustCustomQty(delta) {
+      AppState.customQty = Math.max(1, AppState.customQty + delta);
+      document.getElementById('modal-item-qty').textContent = AppState.customQty;
+      updateCustomDrawerPrice();
+    }
+
+    function updateCustomDrawerPrice() {
+      const item = AppState.customizingItem;
+      if (!item) return;
+
+      let basePrice = 0;
+      if (AppState.customPortion === 'half') {
+        basePrice = Number(item.price_half || item.price_full || 0);
+      } else {
+        basePrice = Number(item.price_full || item.price_half || 0);
+      }
+
+      const addonsTotal = AppState.customAddons.reduce((sum, a) => sum + Number(a.price || 0), 0);
+      const total = (basePrice + addonsTotal) * AppState.customQty;
+
+      const priceEl = document.getElementById('modal-item-total-price');
+      if (priceEl) {
+        priceEl.textContent = `RM ${total.toFixed(2)}`;
+      }
+    }
+
+    function confirmAddItemWithCustomization() {
+      const item = AppState.customizingItem;
+      if (!item) return;
+
+      let basePrice = 0;
+      if (AppState.customPortion === 'half') {
+        basePrice = Number(item.price_half || item.price_full || 0);
+      } else {
+        basePrice = Number(item.price_full || item.price_half || 0);
+      }
+
+      const notes = (document.getElementById('modal-item-notes')?.value || '').trim();
+
+      AppState.cart.push({
+        id: item.id,
+        name: item.name,
+        size: AppState.customPortion,
+        price: basePrice,
+        qty: AppState.customQty,
+        addons: [...AppState.customAddons],
+        notes: notes,
+        open_item: false
+      });
+
+      playChime('add');
+      showToast(`Added ${item.name} (${AppState.customPortion.toUpperCase()}) to order`, 'success');
+      closeItemCustomizeDrawer();
+      renderMobileMenuItems();
+      updateStickyCartBar();
+    }
+
+    // ── Sticky Bottom Cart Bar Update ──
+    function updateStickyCartBar() {
+      const bar = document.getElementById('sticky-cart-bar');
+      const countEl = document.getElementById('bar-items-count');
+      const totalEl = document.getElementById('bar-total-amount');
+
+      const totalItems = AppState.cart.reduce((s, c) => s + c.qty, 0);
+      const subtotal = AppState.cart.reduce((s, c) => {
+        const addonSum = (c.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        return s + ((Number(c.price) + addonSum) * c.qty);
+      }, 0);
+
+      if (totalItems > 0 && AppState.currentView === 'view-menu') {
+        countEl.textContent = totalItems;
+        totalEl.textContent = `RM ${subtotal.toFixed(2)}`;
+        bar.classList.remove('hidden');
+      } else {
+        bar.classList.add('hidden');
+      }
+    }
+
+    // ── Cart Drawer / Sheet Operations ──
+    function openCartDrawer() {
+      renderCartDrawerItems();
+      document.getElementById('cart-drawer-backdrop').classList.remove('hidden');
+      document.getElementById('cart-drawer').classList.remove('hidden');
+    }
+
+    function closeCartDrawer() {
+      document.getElementById('cart-drawer-backdrop').classList.add('hidden');
+      document.getElementById('cart-drawer').classList.add('hidden');
+    }
+
+    function renderCartDrawerItems() {
+      const container = document.getElementById('cart-items-scroll');
+      if (!container) return;
+
+      if (AppState.cart.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-neutral-500 text-xs">Cart is empty. Add items from menu.</div>`;
+        closeCartDrawer();
+        updateStickyCartBar();
+        return;
+      }
+
+      container.innerHTML = AppState.cart.map((line, idx) => {
+        const addonSum = (line.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        const itemUnitPrice = Number(line.price) + addonSum;
+        const lineTotal = itemUnitPrice * line.qty;
+
+        return `
+          <div class="bg-surface-card border border-border-subtle rounded-2xl p-3.5 space-y-2 shadow-xs">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
+                  <span class="truncate">${line.name}</span>
+                  ${line.size ? `
+                    <span class="text-[9px] uppercase font-black px-1.5 py-0.2 rounded ${line.size === 'half' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}">
+                      ${line.size}
+                    </span>
+                  ` : ''}
+                  ${line.open_item ? `<span class="bg-accent/20 text-accent border border-accent/30 text-[9px] px-1.5 py-0.2 rounded font-bold">Custom</span>` : ''}
+                </div>
+
+                <div class="text-[11px] text-neutral-400 font-mono mt-0.5">
+                  RM ${itemUnitPrice.toFixed(2)} each
+                  ${addonSum > 0 ? `<span class="text-sky-400 text-[10px]">(base RM ${Number(line.price).toFixed(2)} + extras RM ${addonSum.toFixed(2)})</span>` : ''}
+                </div>
+
+                ${line.addons && line.addons.length > 0 ? `
+                  <div class="flex flex-wrap gap-1 mt-1.5">
+                    ${line.addons.map(a => `
+                      <span class="bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                        <span>+ ${a.name}</span>
+                        ${Number(a.price) > 0 ? `<b class="font-mono">(RM ${Number(a.price).toFixed(2)})</b>` : ''}
+                      </span>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+
+              <div class="text-right flex-shrink-0">
+                <div class="font-mono font-bold text-emerald-400 text-xs">RM ${lineTotal.toFixed(2)}</div>
+                <button type="button" onclick="removeCartLine(${idx})" class="text-neutral-500 hover:text-red-400 text-base mt-1 active:scale-90 transition" title="Remove item">
+                  <iconify-icon icon="solar:trash-bin-2-linear"></iconify-icon>
+                </button>
+              </div>
+            </div>
+
+            <!-- Notes & Stepper Row -->
+            <div class="flex items-center justify-between pt-1 gap-2">
+              <input type="text" value="${line.notes || ''}" onchange="updateCartLineNotes(${idx}, this.value)" placeholder="Item instructions (optional)..." class="flex-1 min-w-0 bg-[#0E1017] border border-border-subtle rounded-xl px-2.5 py-1 text-[11px] text-white placeholder-neutral-500 outline-none focus:border-sky-500 transition">
+
+              <div class="flex items-center bg-[#1B1E28] border border-border-subtle rounded-xl overflow-hidden flex-shrink-0 shadow-xs">
+                <button type="button" onclick="adjustCartLineQty(${idx}, -1)" class="w-7 h-7 flex items-center justify-center text-neutral-300 hover:bg-white/5 font-bold text-xs active:scale-90">-</button>
+                <span class="w-6 text-center text-xs font-bold font-mono text-white">${line.qty}</span>
+                <button type="button" onclick="adjustCartLineQty(${idx}, 1)" class="w-7 h-7 flex items-center justify-center text-neutral-300 hover:bg-white/5 font-bold text-xs active:scale-90">+</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Update totals
+      const subtotal = AppState.cart.reduce((s, c) => {
+        const addonSum = (c.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        return s + ((Number(c.price) + addonSum) * c.qty);
+      }, 0);
+      const tax = Math.round(subtotal * 0.06 * 100) / 100;
+      const grandTotal = Math.round((subtotal + tax) * 100) / 100;
+
+      document.getElementById('cart-subtotal').textContent = `RM ${subtotal.toFixed(2)}`;
+      document.getElementById('cart-tax').textContent = `RM ${tax.toFixed(2)}`;
+      document.getElementById('cart-grand-total').textContent = `RM ${grandTotal.toFixed(2)}`;
+    }
+
+    function adjustCartLineQty(idx, delta) {
+      if (!AppState.cart[idx]) return;
+      AppState.cart[idx].qty += delta;
+      if (AppState.cart[idx].qty <= 0) {
+        AppState.cart.splice(idx, 1);
+      }
+      renderCartDrawerItems();
+      renderMobileMenuItems();
+      updateStickyCartBar();
+    }
+
+    function removeCartLine(idx) {
+      AppState.cart.splice(idx, 1);
+      renderCartDrawerItems();
+      renderMobileMenuItems();
+      updateStickyCartBar();
+    }
+
+    function updateCartLineNotes(idx, note) {
+      if (AppState.cart[idx]) AppState.cart[idx].notes = note;
+    }
+
+    // ── Confirmation Modal ──
+    function openConfirmationModal() {
+      if (AppState.cart.length === 0) {
+        showToast('Cart is empty', 'error');
+        return;
+      }
+
+      const totalItems = AppState.cart.reduce((s, c) => s + c.qty, 0);
+      const subtotal = AppState.cart.reduce((s, c) => {
+        const addonSum = (c.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        return s + ((Number(c.price) + addonSum) * c.qty);
+      }, 0);
+
+      const titleEl = document.getElementById('confirm-modal-title');
+      const descEl = document.getElementById('confirm-modal-desc');
+      const previewEl = document.getElementById('confirm-modal-preview');
+
+      const itemsPreviewHtml = AppState.cart.map(c => {
+        const addonSum = (c.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        const lTot = (Number(c.price) + addonSum) * c.qty;
+        return `
+          <div class="py-1 border-b border-white/5 last:border-0">
+            <div class="flex justify-between text-xs">
+              <span class="text-white font-medium">${c.qty}× ${c.name} ${c.size ? `(${c.size.toUpperCase()})` : ''}</span>
+              <span class="font-mono text-emerald-400 font-bold">RM ${lTot.toFixed(2)}</span>
+            </div>
+            ${c.addons && c.addons.length ? `<div class="text-[10px] text-sky-400 pl-2">+ ${c.addons.map(a => a.name).join(', ')}</div>` : ''}
+            ${c.notes ? `<div class="text-[10px] text-neutral-400 italic pl-2">Note: ${c.notes}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+
+      if (AppState.mode === 'new_order') {
+        titleEl.textContent = `Confirm New Order: Table ${AppState.selectedTable}`;
+        descEl.textContent = 'This will create a new dine-in ticket and notify POS immediately.';
+        previewEl.innerHTML = `
+          <div class="flex justify-between text-neutral-400 pb-1 border-b border-border-subtle">
+            <span>Table: <b class="text-white">${AppState.selectedTable}</b></span>
+            <span>Total Items: <b class="text-white">${totalItems}</b></span>
+          </div>
+          <div class="max-h-36 overflow-y-auto custom-scroll py-1">
+            ${itemsPreviewHtml}
+          </div>
+          <div class="flex justify-between font-bold pt-1 border-t border-border-subtle">
+            <span class="text-neutral-300">Est. Total:</span>
+            <span class="text-emerald-400 font-mono">RM ${subtotal.toFixed(2)}</span>
+          </div>
+        `;
+      } else {
+        titleEl.textContent = `Add Items to Order #${AppState.selectedOrder.order_no}`;
+        descEl.textContent = `Table ${AppState.selectedTable} • Items will be appended to active bill.`;
+        previewEl.innerHTML = `
+          <div class="flex justify-between text-neutral-400 pb-1 border-b border-border-subtle">
+            <span>Table: <b class="text-white">${AppState.selectedTable}</b> (#${AppState.selectedOrder.order_no})</span>
+            <span>New Items: <b class="text-white">${totalItems}</b></span>
+          </div>
+          <div class="max-h-36 overflow-y-auto custom-scroll py-1">
+            ${itemsPreviewHtml}
+          </div>
+          <div class="flex justify-between font-bold pt-1 border-t border-border-subtle">
+            <span class="text-neutral-300">Added Amount:</span>
+            <span class="text-emerald-400 font-mono">RM ${subtotal.toFixed(2)}</span>
+          </div>
+        `;
+      }
+
+      document.getElementById('confirm-modal').classList.remove('hidden');
+    }
+
+    function closeConfirmationModal() {
+      document.getElementById('confirm-modal').classList.add('hidden');
+    }
+
+    // ── SUBMIT ORDER / ADD ITEMS (DOUBLE-TAP LOCKED) ──
+    async function executeOrderSubmission() {
+      if (!navigator.onLine) {
+        showToast('Network is offline. Please check restaurant Wi-Fi before submitting.', 'error');
+        return;
+      }
+      if (AppState.isSubmitting) return; // Prevent double click
+      AppState.isSubmitting = true;
+
+      const submitBtn = document.getElementById('confirm-submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<iconify-icon icon="solar:restart-bold" class="animate-spin text-base"></iconify-icon> Sending...`;
+
+      const overallNotes = (document.getElementById('order-note-input')?.value || '').trim();
+
+      try {
+        if (AppState.mode === 'new_order') {
+          // POST /api/water/order
+          const payload = {
+            table_number: AppState.selectedTable,
+            cart: AppState.cart,
+            notes: overallNotes
+          };
+          const res = await fetch('/api/water/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data.ok) {
+            playChime('success');
+            showToast(`Order #${data.order?.order_no || ''} submitted for Table ${AppState.selectedTable}!`, 'success');
+            closeConfirmationModal();
+            closeCartDrawer();
+            AppState.cart = [];
+            updateStickyCartBar();
+            await loadTablesData();
+            switchView('view-home');
+          } else {
+            showToast(data.error || 'Failed to submit order', 'error');
+          }
+        } else {
+          // POST /api/water/order/<oid>/add-items
+          const payload = {
+            cart: AppState.cart,
+            notes: overallNotes
+          };
+          const res = await fetch(`/api/water/order/${AppState.selectedOrder.id}/add-items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (data.ok) {
+            playChime('success');
+            showToast(`Items successfully added to Order #${AppState.selectedOrder.order_no}!`, 'success');
+            closeConfirmationModal();
+            closeCartDrawer();
+            AppState.cart = [];
+            updateStickyCartBar();
+            await loadTablesData();
+            switchView('view-home');
+          } else {
+            showToast(data.error || 'Failed to add items', 'error');
+          }
+        }
+      } catch (e) {
+        showToast('Network error submitting order', 'error');
+      } finally {
+        AppState.isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>Yes, Submit</span>`;
+      }
+    }
+
+    // ── Open / Custom Item Modal Operations ──
+    function openOpenItemModal() {
+      document.getElementById('open-item-name').value = '';
+      document.getElementById('open-item-price').value = '';
+      document.getElementById('open-item-qty').value = '1';
+      document.getElementById('open-item-notes').value = '';
+      document.getElementById('open-item-modal').classList.remove('hidden');
+    }
+    function closeOpenItemModal() {
+      document.getElementById('open-item-modal').classList.add('hidden');
+    }
+    function adjustOpenItemQty(delta) {
+      const el = document.getElementById('open-item-qty');
+      let val = parseInt(el.value || 1) + delta;
+      if (val < 1) val = 1;
+      el.value = val;
+    }
+    function confirmAddOpenItem() {
+      const name = (document.getElementById('open-item-name').value || '').trim();
+      const price = parseFloat(document.getElementById('open-item-price').value || 0);
+      const qty = parseInt(document.getElementById('open-item-qty').value || 1);
+      const notes = (document.getElementById('open-item-notes').value || '').trim();
+
+      if (!name) {
+        showToast('Please enter item name', 'error');
+        return;
+      }
+      if (isNaN(price) || price < 0) {
+        showToast('Please enter a valid price', 'error');
+        return;
+      }
+
+      AppState.cart.push({
+        open_item: true,
+        name: name,
+        price: price,
+        qty: qty,
+        size: 'full',
+        notes: notes
+      });
+
+      playChime('add');
+      closeOpenItemModal();
+      updateStickyCartBar();
+      showToast(`Added custom "${name}" to cart`, 'success');
+
+      // If on menu, show cart drawer
+      if (AppState.currentView === 'view-menu') {
+        openCartDrawer();
+      }
+    }
+
+    // ── Order Timeline Modal ──
+    async function openTimelineModalCurrent() {
+      if (!AppState.selectedOrder) return;
+      openTimelineModal(AppState.selectedOrder.id);
+    }
+
+    async function openTimelineModal(orderId) {
+      const modal = document.getElementById('timeline-modal');
+      const eventsEl = document.getElementById('timeline-modal-events');
+      modal.classList.remove('hidden');
+      eventsEl.innerHTML = `<div class="p-8 text-center text-neutral-500 text-xs"><iconify-icon icon="solar:restart-bold" class="animate-spin text-xl"></iconify-icon><div class="mt-1">Loading timeline...</div></div>`;
+
+      try {
+        const res = await fetch(`/api/water/order/${orderId}/timeline`);
+        if (!res.ok) throw new Error();
+        const d = await res.json();
+
+        document.getElementById('timeline-modal-title').textContent = `Timeline: Order #${d.order_no} (T${d.table_number})`;
+
+        eventsEl.innerHTML = (d.events || []).map((ev, idx) => `
+          <div class="flex items-start gap-3 text-xs relative pb-1">
+            <div class="w-6 h-6 rounded-full ${ev.event_type === 'created' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'} flex items-center justify-center flex-shrink-0 text-sm">
+              <iconify-icon icon="${ev.event_type === 'created' ? 'solar:pen-new-square-bold' : 'solar:add-circle-bold'}"></iconify-icon>
+            </div>
+            <div class="flex-1 bg-surface-card border border-border-subtle rounded-xl p-2.5 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-white">${ev.title}</span>
+                <span class="text-[10px] text-neutral-400 font-mono">${ev.timestamp}</span>
+              </div>
+              <div class="text-neutral-400 text-[11px] font-medium">By: <b class="text-slate-200">${ev.user_name || ev.username}</b></div>
+              <div class="text-slate-300 text-[11px] bg-black/30 rounded p-1.5 font-mono">${ev.items_summary || ev.details}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        eventsEl.innerHTML = `<div class="p-4 text-center text-red-400 text-xs">Failed to load order history</div>`;
+      }
+    }
+
+    function closeTimelineModal() {
+      document.getElementById('timeline-modal').classList.add('hidden');
+    }
+
+    // ── Home Screen Active Orders Preview ──
+    function renderHomeActiveList() {
+      const container = document.getElementById('home-active-list');
+      const badgeCount = document.getElementById('home-active-badge');
+      if (!container) return;
+
+      const activeTables = AppState.tables.filter(t => t.has_active_order && t.active_order);
+      if (badgeCount) badgeCount.textContent = `${activeTables.length} Active`;
+
+      if (activeTables.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-neutral-500 bg-surface-card rounded-2xl border border-border-subtle text-xs">
+            <iconify-icon icon="solar:chair-bold" class="text-3xl mb-1 text-neutral-600"></iconify-icon>
+            <div>No active dine-in orders right now.</div>
+            <button onclick="startNewOrderFlow()" class="mt-2 text-sky-400 font-bold text-xs hover:underline">+ Start New Order</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = activeTables.map(t => {
+        const act = t.active_order;
+        return `
+          <div class="bg-surface-card border border-border-subtle hover:border-sky-500/40 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xs">
+            <div class="flex items-center gap-2.5">
+              <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex flex-col items-center justify-center text-sky-400 font-mono flex-shrink-0">
+                <span class="text-[9px] font-bold uppercase leading-none">Table</span>
+                <span class="text-base font-black leading-none">${String(t.number).padStart(2, '0')}</span>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-white">Order #${act.order_no}</div>
+                <div class="text-[11px] text-neutral-400 font-mono">${act.item_count} Items • <span class="text-emerald-400 font-bold">RM ${Number(act.total).toFixed(2)}</span></div>
+                <div class="text-[10px] text-neutral-500">${act.created_at_time} (${act.elapsed_minutes}m ago)</div>
+              </div>
+            </div>
+
+            <button onclick="handleTableTap(${t.number})" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 active:scale-95 transition flex-shrink-0">
+              <span>Open</span>
+              <iconify-icon icon="solar:arrow-right-linear"></iconify-icon>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── Load Full Active Orders View ──
+    async function loadActiveOrdersView() {
+      const list = document.getElementById('active-orders-full-list');
+      if (!list) return;
+      list.innerHTML = `<div class="p-8 text-center text-neutral-500 text-xs"><iconify-icon icon="solar:restart-bold" class="animate-spin text-xl"></iconify-icon></div>`;
+
+      try {
+        const res = await fetch('/api/water/active-orders');
+        if (!res.ok) throw new Error();
+        const orders = await res.json();
+
+        if (orders.length === 0) {
+          list.innerHTML = `<div class="p-8 text-center text-neutral-500 bg-surface-card rounded-2xl text-xs">No active orders</div>`;
+          return;
+        }
+
+        list.innerHTML = orders.map(o => `
+          <div class="bg-surface-card border border-border-subtle rounded-2xl p-4 space-y-2.5">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="text-xs font-bold text-sky-400">Table ${o.table_number || '?'}</div>
+                <div class="text-base font-extrabold text-white">#${o.order_no}</div>
+                <div class="text-[11px] text-neutral-400">${o.created_at} • Waiter: ${o.waiter_name || 'Staff'}</div>
+              </div>
+              <div class="text-right">
+                <span class="text-xs uppercase px-2 py-0.5 rounded-full font-bold ${o.status === 'confirmed' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'}">${o.status}</span>
+                <div class="text-base font-extrabold text-emerald-400 font-mono mt-1">RM ${Number(o.total).toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div class="bg-black/30 rounded-xl p-2.5 text-xs text-neutral-300 font-mono space-y-1">
+              ${(o.items || []).map(i => `<div>${i.qty}× ${i.name}</div>`).join('')}
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+              <button onclick="handleTableTap(${o.table_number})" class="flex-1 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1 active:scale-95 transition">
+                <iconify-icon icon="solar:add-circle-bold"></iconify-icon>
+                <span>+ Add Items</span>
+              </button>
+              <button onclick="openTimelineModal(${o.id})" class="bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 active:scale-95 transition">
+                <iconify-icon icon="solar:history-bold"></iconify-icon>
+                <span>Timeline</span>
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        list.innerHTML = `<div class="p-6 text-center text-red-400 text-xs">Failed to load active orders</div>`;
+      }
+    }
+
+    // ── Load My Orders View ──
+    async function loadMyOrdersView() {
+      const list = document.getElementById('my-orders-full-list');
+      if (!list) return;
+      list.innerHTML = `<div class="p-8 text-center text-neutral-500 text-xs"><iconify-icon icon="solar:restart-bold" class="animate-spin text-xl"></iconify-icon></div>`;
+
+      try {
+        const res = await fetch('/api/water/my-orders');
+        if (!res.ok) throw new Error();
+        const orders = await res.json();
+
+        if (orders.length === 0) {
+          list.innerHTML = `<div class="p-8 text-center text-neutral-500 bg-surface-card rounded-2xl text-xs">No orders serviced by you yet.</div>`;
+          return;
+        }
+
+        list.innerHTML = orders.map(o => `
+          <div class="bg-surface-card border border-border-subtle rounded-2xl p-3.5 space-y-2">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="text-xs font-bold text-white">Table ${o.table_number || '?'} — Order #${o.order_no}</div>
+                <div class="text-[11px] text-neutral-400">${o.created_at}</div>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${o.has_additional_items ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'}">
+                  ${o.has_additional_items ? 'Items Appended' : 'Order Created'}
+                </span>
+                <div class="text-xs font-bold text-emerald-400 font-mono mt-0.5">RM ${Number(o.total).toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div class="text-xs text-neutral-300 bg-black/20 rounded-lg p-2 font-mono truncate">
+              ${(o.items || []).map(i => `${i.qty}× ${i.name}`).join(', ')}
+            </div>
+
+            <div class="flex justify-end">
+              <button onclick="openTimelineModal(${o.id})" class="text-xs text-sky-400 hover:underline font-semibold flex items-center gap-1">
+                <span>View Timeline</span>
+                <iconify-icon icon="solar:arrow-right-linear"></iconify-icon>
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        list.innerHTML = `<div class="p-6 text-center text-red-400 text-xs">Failed to load shift orders</div>`;
+      }
+    }
+
+    // ── Global Data Refresh ──
+    async function refreshData() {
+      const icon = document.getElementById('home-refresh-icon');
+      if (icon) icon.classList.add('animate-spin');
+      await loadTablesData();
+      await loadMenuData();
+      if (icon) icon.classList.remove('animate-spin');
+      showToast('Data refreshed', 'info');
+    }
+
+    // ── PWA & App Installation Handler ──
+    window.deferredPWAInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window.deferredPWAInstallPrompt = e;
+      const pwaBtn = document.getElementById('btn-profile-pwa');
+      if (pwaBtn) pwaBtn.classList.remove('opacity-60');
+    });
+
+    function triggerPWAInstall() {
+      if (window.deferredPWAInstallPrompt) {
+        window.deferredPWAInstallPrompt.prompt();
+        window.deferredPWAInstallPrompt.userChoice.then((choice) => {
+          window.deferredPWAInstallPrompt = null;
+        });
+      } else {
+        window.location.href = '/water/download';
+      }
+    }
+
+    // ── App Initialization ──
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Network connectivity listeners
+      function handleConnectionChange() {
+        const banner = document.getElementById('offline-banner');
+        if (banner) {
+          if (navigator.onLine) {
+            banner.classList.add('hidden');
+          } else {
+            banner.classList.remove('hidden');
+          }
+        }
+      }
+      window.addEventListener('online', handleConnectionChange);
+      window.addEventListener('offline', handleConnectionChange);
+      handleConnectionChange();
+
+      await loadTablesData();
+      await loadMenuData();
+      // Auto-poll active tables every 15 seconds
+      setInterval(() => {
+        if (AppState.currentView === 'view-home' || AppState.currentView === 'view-tables') {
+          loadTablesData();
+        }
+      }, 15000);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0B0C10">
+  <link rel="manifest" href="/water/manifest.json">
+  <title>{{ app_config.app_name }} — Login</title>
+
+  <!-- Tailwind CSS & Iconify -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            accent: '#C65A1E',
+            'accent-hover': '#A84815',
+            'water-blue': '#0284C7',
+            'dark-bg': '#0B0C10',
+            'card-bg': '#14161E',
+            'border-subtle': 'rgba(255, 255, 255, 0.08)',
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #0B0C10;
+      color: #F1F5F9;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 100vh;
+      min-height: 100dvh;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .safe-padding {
+      padding-top: max(env(safe-area-inset-top, 20px), 20px);
+      padding-bottom: max(env(safe-area-inset-bottom, 20px), 20px);
+    }
+    input {
+      font-family: inherit;
+    }
+  </style>
+</head>
+<body class="flex flex-col justify-between max-w-md mx-auto min-h-screen px-6 safe-padding border-x border-border-subtle bg-dark-bg">
+
+  <!-- TOP HEADER / BRANDING -->
+  <div class="pt-4 text-center space-y-3">
+    <!-- App Logo with Water Glow -->
+    <div class="w-20 h-20 rounded-3xl bg-sky-500/10 border-2 border-sky-500/40 p-2 mx-auto flex items-center justify-center shadow-lg shadow-sky-950/50">
+      <img src="{{ app_config.app_logo_url }}" alt="{{ app_config.app_name }}" class="w-full h-full object-contain rounded-2xl">
+    </div>
+
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white uppercase">{{ app_config.app_name }}</h1>
+      <div class="text-xs font-bold text-sky-400 tracking-wider uppercase mt-0.5">Water &amp; Beverage Ordering</div>
+      <p class="text-xs text-neutral-400 mt-1">Sign in with your staff account to begin service</p>
+    </div>
+  </div>
+
+  <!-- LOGIN FORM (TOUCH-OPTIMIZED) -->
+  <div class="w-full my-auto py-6">
+    {% if error %}
+    <div class="mb-4 p-3.5 bg-red-950/80 border border-red-500/40 rounded-2xl text-red-200 text-xs font-semibold flex items-center gap-2.5">
+      <iconify-icon icon="solar:danger-triangle-bold" class="text-lg text-red-400 flex-shrink-0"></iconify-icon>
+      <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/water/login" class="space-y-4">
+      <input type="hidden" name="next" value="{{ next_url or '' }}">
+      <div>
+        <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-1.5">Username</label>
+        <div class="relative">
+          <iconify-icon icon="solar:user-bold" class="absolute left-3.5 top-3.5 text-neutral-500 text-lg"></iconify-icon>
+          <input type="text" id="login-username" name="username" required autofocus autocomplete="username" placeholder="Enter username (e.g. water1)" class="w-full bg-card-bg border border-border-subtle focus:border-sky-500 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-neutral-500 outline-none transition">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-1.5">Password</label>
+        <div class="relative">
+          <iconify-icon icon="solar:lock-bold" class="absolute left-3.5 top-3.5 text-neutral-500 text-lg"></iconify-icon>
+          <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="••••••••" class="w-full bg-card-bg border border-border-subtle focus:border-sky-500 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-neutral-500 outline-none transition">
+        </div>
+      </div>
+
+      <!-- Quick 1-Tap Login Credential Filler -->
+      <button type="button" onclick="quickFillWaterStaff()" class="w-full py-2.5 px-3 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition">
+        <iconify-icon icon="solar:user-check-bold" class="text-sm"></iconify-icon>
+        <span>Auto-Fill: Staff Account (water1)</span>
+      </button>
+
+      <button type="submit" class="w-full bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white font-extrabold py-4 px-4 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-xl shadow-sky-950/50 active:scale-[0.98] transition mt-2">
+        <iconify-icon icon="solar:login-2-bold" class="text-lg"></iconify-icon>
+        <span>LOGIN TO WATER PANEL</span>
+      </button>
+    </form>
+  </div>
+
+  <script>
+    function quickFillWaterStaff() {
+      document.getElementById('login-username').value = 'water1';
+      document.getElementById('login-password').value = 'water123';
+    }
+  </script>
+
+  <!-- FOOTER & APP DOWNLOAD LINK -->
+  <div class="pb-2 text-center space-y-3">
+    <a href="/water/download" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-sky-400 active:scale-95 transition">
+      <iconify-icon icon="solar:smartphone-2-bold" class="text-base"></iconify-icon>
+      <span>Download Android APK / Install App</span>
+      <iconify-icon icon="solar:arrow-right-linear"></iconify-icon>
+    </a>
+
+    <div class="text-[11px] text-neutral-500">
+      {{ restaurant.name }} • v{{ app_config.app_version }}
+    </div>
+  </div>
+
+</body>
+</html>
+

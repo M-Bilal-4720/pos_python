@@ -8,3 +8,6 @@ static/uploads/
 maibistro.db
 instance/.secret_key
 *.zip
+*.idsig
+.gradle/
+android_app/build_tmp/
