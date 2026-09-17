@@ -98,9 +98,54 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return false;
             }
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (request.isForMainFrame()) {
+                    showOfflineErrorPage(view);
+                }
+            }
+            @Override
+            public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                showOfflineErrorPage(view);
+            }
         });
 
         webView.loadUrl(serverUrl);
+    }
+
+    private void showOfflineErrorPage(WebView view) {
+        String current = prefs.getString(KEY_SERVER_URL, getString(R.string.default_server_url));
+        String html = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'>"
+            + "<style>"
+            + "body{background:#0B0C10;color:#F1F5F9;font-family:sans-serif;padding:30px 20px;text-align:center;box-sizing:border-box;margin:0;}"
+            + ".icon{font-size:48px;margin-bottom:10px;}"
+            + "h2{margin:0 0 10px 0;font-size:20px;font-weight:bold;color:#fff;}"
+            + "p{color:#94A3B8;font-size:13px;line-height:1.5;margin:0 0 20px 0;}"
+            + ".card{background:#14161E;border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:20px;text-align:left;}"
+            + "label{display:block;font-size:11px;font-weight:bold;color:#38BDF8;text-transform:uppercase;margin-bottom:6px;}"
+            + "input{width:100%;box-sizing:border-box;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.15);background:#0B0C10;color:#fff;font-size:15px;outline:none;margin-bottom:14px;}"
+            + "button{width:100%;padding:14px;border-radius:12px;border:none;background:#0284C7;color:#fff;font-size:15px;font-weight:bold;cursor:pointer;}"
+            + "</style></head><body>"
+            + "<div class='icon'>📡</div>"
+            + "<h2>Server Not Reachable</h2>"
+            + "<p>Make sure this phone is on the same Wi-Fi network as the POS computer, then enter the current POS IP address:</p>"
+            + "<div class='card'>"
+            + "<label>Server URL / IP Address</label>"
+            + "<input type='text' id='url' value='" + current + "' placeholder='http://192.168.50.52:5000/water'>"
+            + "<button onclick='save()'>Connect Now</button>"
+            + "</div>"
+            + "<script>"
+            + "function save(){"
+            + "  var u=document.getElementById('url').value.trim();"
+            + "  if(!u.startsWith('http://') && !u.startsWith('https://')) u='http://'+u;"
+            + "  if(!u.includes(':5000')) u=u+':5000';"
+            + "  if(!u.endsWith('/water')) u=u+'/water';"
+            + "  if(window.AndroidBridge) window.AndroidBridge.setServerUrl(u);"
+            + "  else location.href=u;"
+            + "}"
+            + "</script>"
+            + "</body></html>";
+        view.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
     }
 
     private class WebAppInterface {
