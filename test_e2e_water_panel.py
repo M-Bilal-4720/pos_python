@@ -478,5 +478,85 @@ class TestWaterPanelE2E(unittest.TestCase):
 
         self.logout()
 
+    def test_water_order_with_dual_portions_and_addons(self):
+        """Water staff can place an order specifying Half/Full portions and item add-ons with correct pricing."""
+        from app import AddOn
+        self.login("water1", "water123")
+
+        with app.app_context():
+            # Find an item with both full and half price
+            dual_item = MenuItem.query.filter(MenuItem.price_full > 0, MenuItem.price_half > 0, MenuItem.available == True).first()
+            if not dual_item:
+                dual_item = MenuItem.query.filter_by(available=True).first()
+                dual_item.price_full = 30.0
+                dual_item.price_half = 18.0
+                db.session.commit()
+
+            addon = AddOn.query.filter_by(available=True).first()
+            self.assertIsNotNone(addon)
+
+            dual_item_id = dual_item.id
+            dual_item_name = dual_item.name
+            p_half = float(dual_item.price_half)
+            p_full = float(dual_item.price_full)
+            addon_name = addon.name
+            addon_price = float(addon.price)
+
+        # Cart with 1 Half + Addon and 2 Full
+        cart = [
+            {
+                "id": dual_item_id,
+                "name": dual_item_name,
+                "size": "half",
+                "price": p_half,
+                "qty": 1,
+                "addons": [{"name": addon_name, "price": addon_price}],
+                "notes": "Extra crispy"
+            },
+            {
+                "id": dual_item_id,
+                "name": dual_item_name,
+                "size": "full",
+                "price": p_full,
+                "qty": 2,
+                "addons": [],
+                "notes": "Mild spicy"
+            }
+        ]
+
+        payload = {
+            "table_number": 8,
+            "cart": cart,
+            "notes": "Table 8 portions test"
+        }
+
+        res = self.client.post('/api/water/order', data=json.dumps(payload), content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data.get("ok"))
+        order_id = data["order"]["id"]
+
+        with app.app_context():
+            order = db.session.get(Order, order_id)
+            self.assertIsNotNone(order)
+            self.assertEqual(len(order.items), 2)
+
+            half_oi = next(i for i in order.items if i.size == "half")
+            full_oi = next(i for i in order.items if i.size == "full")
+
+            self.assertEqual(half_oi.qty, 1)
+            self.assertEqual(half_oi.unit_price, p_half)
+            self.assertIn(addon_name, half_oi.addons_json)
+            self.assertEqual(half_oi.notes, "Extra crispy")
+
+            self.assertEqual(full_oi.qty, 2)
+            self.assertEqual(full_oi.unit_price, p_full)
+            self.assertEqual(full_oi.notes, "Mild spicy")
+
+            expected_subtotal = round((p_half + addon_price) * 1 + (p_full * 2), 2)
+            self.assertAlmostEqual(order.subtotal, expected_subtotal, places=2)
+
+        self.logout()
+
 if __name__ == "__main__":
     unittest.main()
