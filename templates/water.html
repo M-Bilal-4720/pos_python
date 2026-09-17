@@ -48,23 +48,55 @@
       -webkit-tap-highlight-color: transparent;
       box-sizing: border-box;
     }
+    html {
+      min-height: 100%;
+      background-color: #0B0C10;
+    }
     body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      padding: 0;
       background-color: #0B0C10;
       color: #F1F5F9;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-      overflow: hidden;
-      height: 100dvh;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
     }
-    .custom-scroll::-webkit-scrollbar { display: none; }
-    .custom-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    /* Touch momentum scrolling for mobile */
+    .scrollable {
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    .scrollable-x {
+      overflow-x: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    /* Thin, visible modern scrollbar so staff can see scrollable content */
+    .custom-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
     .bottom-nav-safe {
-      padding-bottom: env(safe-area-inset-bottom, 16px);
+      padding-bottom: max(env(safe-area-inset-bottom, 12px), 12px);
     }
     .top-bar-safe {
-      padding-top: env(safe-area-inset-top, 0px);
+      padding-top: max(env(safe-area-inset-top, 0px), 0px);
     }
 
     /* Modal / Drawer animations */
@@ -102,7 +134,7 @@
     }
   </style>
 </head>
-<body class="flex flex-col h-full w-full max-w-md mx-auto relative bg-dark-bg text-slate-100 overflow-hidden shadow-2xl border-x border-border-subtle">
+<body class="w-full max-w-md mx-auto relative bg-dark-bg text-slate-100 shadow-2xl border-x border-border-subtle">
 
   <!-- Network Offline Warning Banner -->
   <div id="offline-banner" class="hidden bg-amber-500 text-black text-xs font-black py-1 px-4 text-center tracking-wide flex items-center justify-center gap-1.5 z-50 flex-shrink-0 shadow-md">
@@ -113,7 +145,7 @@
   <!-- ════════════════════════════════════════════════════════════
        1. TOP MOBILE APP BAR
        ════════════════════════════════════════════════════════════ -->
-  <header class="top-bar-safe bg-[#10121A] border-b border-border-subtle px-4 py-3 flex items-center justify-between flex-shrink-0 z-30">
+  <header class="sticky top-0 z-30 top-bar-safe bg-[#10121A]/95 backdrop-blur-md border-b border-border-subtle px-4 py-3 flex items-center justify-between shadow-md flex-shrink-0">
     <div class="flex items-center gap-2.5">
       <div class="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 font-bold shadow-sm">
         <iconify-icon icon="solar:water-drop-bold" class="text-xl"></iconify-icon>
@@ -132,8 +164,11 @@
       </div>
     </div>
 
-    <!-- Quick Audio, Download & Logout -->
+    <!-- Quick Reload, Audio, Download & Logout -->
     <div class="flex items-center gap-1.5">
+      <button onclick="window.location.reload(true)" class="w-8 h-8 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm border border-sky-500/30 active:scale-95 transition" title="Refresh Page">
+        <iconify-icon icon="solar:refresh-linear"></iconify-icon>
+      </button>
       <a href="/water/download" class="px-2 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition" title="Get App">
         <iconify-icon icon="solar:smartphone-2-bold"></iconify-icon>
         <span>App</span>
@@ -150,7 +185,7 @@
   <!-- ════════════════════════════════════════════════════════════
        2. DYNAMIC APP VIEWS CONTAINER
        ════════════════════════════════════════════════════════════ -->
-  <main class="flex-1 overflow-y-auto custom-scroll relative pb-28">
+  <main class="w-full relative pb-36">
 
     <!-- ────────────────────────────────────────────────────────────
          VIEW 1: HOME DASHBOARD
@@ -252,7 +287,7 @@
       </div>
 
       <!-- Filter Chips -->
-      <div class="flex items-center gap-1.5 overflow-x-auto custom-scroll pb-1">
+      <div class="flex items-center gap-1.5 overflow-x-auto scrollable-x custom-scroll pb-1">
         <button onclick="setTableFilter('all')" id="tbl-filter-all" class="px-3 py-1 rounded-full text-xs font-bold bg-sky-500 text-white shadow-sm transition">
           All Tables
         </button>
@@ -366,7 +401,7 @@
       </div>
 
       <!-- Horizontal Category Chips -->
-      <div class="flex items-center gap-1.5 overflow-x-auto custom-scroll pb-1">
+      <div class="flex items-center gap-1.5 overflow-x-auto scrollable-x custom-scroll pb-1">
         <button onclick="setMenuCategory('All')" id="cat-pill-All" class="cat-pill px-3 py-1 rounded-full text-xs font-bold bg-accent text-white shadow-sm flex-shrink-0 transition">
           All
         </button>
@@ -547,6 +582,93 @@
   </nav>
 
   <!-- ════════════════════════════════════════════════════════════
+       4.5 ITEM CUSTOMIZATION & ADDONS DRAWER (PORTIONS & ADDONS)
+       ════════════════════════════════════════════════════════════ -->
+  <div id="item-customize-backdrop" onclick="closeItemCustomizeDrawer()" class="hidden fixed inset-0 bg-black/75 backdrop-blur-xs z-50 transition-opacity duration-300"></div>
+
+  <div id="item-customize-drawer" class="hidden fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#141620] border-t border-border-subtle rounded-t-3xl bottom-nav-safe z-50 max-h-[90vh] flex flex-col shadow-2xl sheet-up">
+    <!-- Handle & Title -->
+    <div class="p-4 pb-2 border-b border-border-subtle flex-shrink-0">
+      <div class="w-10 h-1 bg-white/20 rounded-full mx-auto mb-3"></div>
+      <div class="flex items-start justify-between">
+        <div>
+          <div id="modal-item-category" class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Category</div>
+          <h3 id="modal-item-name" class="text-base font-black text-white leading-tight mt-0.5">Item Name</h3>
+          <p id="modal-item-desc" class="text-[11px] text-neutral-400 mt-0.5 line-clamp-2"></p>
+        </div>
+        <button onclick="closeItemCustomizeDrawer()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 flex items-center justify-center text-base">
+          <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Options Body -->
+    <div class="flex-1 min-h-0 overflow-y-auto scrollable custom-scroll p-4 space-y-4">
+      <!-- 1. Portion Selection (Full vs Half) -->
+      <div id="modal-portion-section">
+        <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <iconify-icon icon="solar:pie-chart-2-bold" class="text-sky-400"></iconify-icon>
+          <span>Portion / Size</span>
+        </label>
+        <div class="grid grid-cols-2 gap-2" id="modal-portion-options">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- 2. Add-ons Selection -->
+      <div id="modal-addons-section">
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide flex items-center gap-1.5">
+            <iconify-icon icon="solar:add-circle-bold" class="text-accent"></iconify-icon>
+            <span>Add-ons / Extras</span>
+          </label>
+          <span id="modal-addons-selected-count" class="text-[10px] text-sky-400 font-mono font-bold">0 selected</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2" id="modal-addons-list">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- 3. Quick Preparation Notes -->
+      <div>
+        <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <iconify-icon icon="solar:notes-bold" class="text-neutral-400"></iconify-icon>
+          <span>Special Instructions / Notes</span>
+        </label>
+        <div class="flex flex-wrap gap-1.5 mb-2" id="quick-note-chips">
+          <button type="button" onclick="appendQuickNote('Less Spicy')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">Less Spicy</button>
+          <button type="button" onclick="appendQuickNote('Extra Spicy')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">Extra Spicy</button>
+          <button type="button" onclick="appendQuickNote('No Onion')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">No Onion</button>
+          <button type="button" onclick="appendQuickNote('Less Ice')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">Less Ice</button>
+          <button type="button" onclick="appendQuickNote('Hot')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-neutral-300 border border-white/10 active:scale-95">Hot</button>
+        </div>
+        <input type="text" id="modal-item-notes" placeholder="e.g. Well done, no ice, extra spicy..." class="w-full bg-[#0E1017] border border-border-subtle rounded-xl px-3 py-2.5 text-xs text-white placeholder-neutral-500 outline-none focus:border-sky-500">
+      </div>
+
+      <!-- 4. Quantity Stepper -->
+      <div class="flex items-center justify-between bg-[#10121A] border border-border-subtle rounded-2xl p-3">
+        <span class="text-xs font-bold text-white uppercase tracking-wider">Quantity</span>
+        <div class="flex items-center bg-[#1B1E28] border border-border-subtle rounded-xl overflow-hidden shadow-xs">
+          <button type="button" onclick="adjustCustomQty(-1)" class="w-9 h-9 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-lg active:scale-90">-</button>
+          <span id="modal-item-qty" class="w-10 text-center text-sm font-bold font-mono text-white">1</span>
+          <button type="button" onclick="adjustCustomQty(1)" class="w-9 h-9 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-lg active:scale-90">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Sticky Action Button -->
+    <div class="p-4 bg-[#10121A] border-t border-border-subtle flex-shrink-0">
+      <button type="button" onclick="confirmAddItemWithCustomization()" class="w-full bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white font-extrabold py-3.5 px-4 rounded-2xl flex items-center justify-between shadow-xl shadow-sky-950/60 active:scale-[0.98] transition">
+        <div class="flex items-center gap-2">
+          <iconify-icon icon="solar:cart-large-4-bold" class="text-xl"></iconify-icon>
+          <span class="text-sm">ADD TO ORDER</span>
+        </div>
+        <div id="modal-item-total-price" class="text-base font-black font-mono">RM 0.00</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
        5. SLIDE-UP CART REVIEW DRAWER (BOTTOM SHEET)
        ════════════════════════════════════════════════════════════ -->
   <div id="cart-drawer-backdrop" onclick="closeCartDrawer()" class="hidden fixed inset-0 bg-black/70 backdrop-blur-xs z-50 transition-opacity duration-300"></div>
@@ -567,7 +689,7 @@
     </div>
 
     <!-- Items List (Scrollable) -->
-    <div id="cart-items-scroll" class="flex-1 overflow-y-auto custom-scroll p-4 space-y-3">
+    <div id="cart-items-scroll" class="flex-1 min-h-0 overflow-y-auto scrollable custom-scroll p-4 space-y-3 max-h-[50vh]">
       <!-- Populated by JS -->
     </div>
 
@@ -746,6 +868,14 @@
       menuCategories: ['All'],
       activeCategory: 'All',
       tableFilter: 'all',
+      // Addons catalog
+      addons: [],
+      // Item Customization state
+      customizingItem: null,
+      customPortion: 'full', // 'full' or 'half'
+      customQty: 1,
+      customAddons: [], // array of selected addon objects [{name, price}]
+      customNotes: '',
       // Order Flow State
       mode: 'new_order', // 'new_order' or 'add_items'
       selectedTable: null,
@@ -841,7 +971,9 @@
       if (viewId === 'view-profile') document.getElementById('nav-btn-profile')?.classList.replace('text-neutral-400', 'text-sky-400');
 
       // Scroll top
-      document.querySelector('main').scrollTop = 0;
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
 
       // Load data on view activation
       if (viewId === 'view-tables' || viewId === 'view-home') loadTablesData();
@@ -1042,13 +1174,14 @@
         const data = await res.json();
         AppState.menuItems = data.items || [];
         AppState.menuCategories = ['All', ...(data.categories || [])];
+        AppState.addons = data.addons || [];
         renderMobileMenuItems();
       } catch (e) {
         console.error('Error loading menu:', e);
       }
     }
 
-    // ── Render Menu Cards (Mobile Optimized) ──
+    // ── Render Menu Cards (Mobile Optimized with Full / Half & Addons) ──
     function renderMobileMenuItems() {
       const container = document.getElementById('mobile-menu-list');
       if (!container) return;
@@ -1060,7 +1193,7 @@
         filtered = filtered.filter(i => i.category === AppState.activeCategory);
       }
       if (q) {
-        filtered = filtered.filter(i => i.name.toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q));
+        filtered = filtered.filter(i => (i.name || '').toLowerCase().includes(q) || (i.category || '').toLowerCase().includes(q));
       }
 
       if (filtered.length === 0) {
@@ -1069,34 +1202,110 @@
       }
 
       container.innerHTML = filtered.map(item => {
-        const cartLine = AppState.cart.find(c => c.id === item.id && !c.open_item);
-        const qtyInCart = cartLine ? cartLine.qty : 0;
-        const price = item.price_full || item.price_half || 0;
+        const hasHalf = item.price_half != null && Number(item.price_half) > 0;
+        const hasFull = item.price_full != null && Number(item.price_full) > 0;
+        const isDual = hasHalf && hasFull;
 
-        return `
-          <div class="bg-surface-card border border-border-subtle rounded-2xl p-3 flex items-center justify-between gap-3 shadow-xs">
-            <div class="flex-1 min-w-0">
-              <div class="text-xs font-bold text-white leading-tight truncate">${item.name}</div>
-              <div class="text-[11px] text-neutral-400 font-mono mt-0.5">RM ${Number(price).toFixed(2)}</div>
-              ${item.category ? `<span class="text-[9px] uppercase font-semibold text-neutral-500 bg-white/5 px-1.5 py-0.2 rounded mt-1 inline-block">${item.category}</span>` : ''}
-            </div>
+        if (isDual) {
+          // Dual portion item (Half / Full)
+          const halfInCart = AppState.cart.filter(c => c.id === item.id && c.size === 'half' && !c.open_item).reduce((s, c) => s + c.qty, 0);
+          const fullInCart = AppState.cart.filter(c => c.id === item.id && (c.size === 'full' || !c.size) && !c.open_item).reduce((s, c) => s + c.qty, 0);
 
-            <div class="flex-shrink-0">
-              ${qtyInCart === 0 ? `
-                <button onclick="addItemToCart(${item.id})" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 active:scale-95 transition">
-                  <iconify-icon icon="solar:add-circle-linear" class="text-sm"></iconify-icon>
-                  <span>Add</span>
-                </button>
-              ` : `
-                <div class="flex items-center bg-[#1B1E28] border border-sky-500/40 rounded-xl overflow-hidden shadow-xs">
-                  <button onclick="adjustItemQtyInCart(${item.id}, -1)" class="w-7 h-7 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-sm active:scale-90">-</button>
-                  <span class="w-6 text-center text-xs font-bold font-mono text-white">${qtyInCart}</span>
-                  <button onclick="adjustItemQtyInCart(${item.id}, 1)" class="w-7 h-7 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-sm active:scale-90">+</button>
+          return `
+            <div class="bg-surface-card border border-border-subtle hover:border-sky-500/30 rounded-2xl p-3.5 space-y-2.5 shadow-xs transition">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-bold text-white leading-tight truncate">${item.name}</div>
+                  <div class="text-[11px] text-neutral-400 flex items-center gap-2 mt-0.5 font-mono">
+                    <span class="text-sky-400 font-semibold">Half: RM ${Number(item.price_half).toFixed(2)}</span>
+                    <span class="text-neutral-600">•</span>
+                    <span class="text-emerald-400 font-semibold">Full: RM ${Number(item.price_full).toFixed(2)}</span>
+                  </div>
+                  ${item.category ? `<span class="text-[9px] uppercase font-semibold text-neutral-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded mt-1 inline-block">${item.category}</span>` : ''}
                 </div>
-              `}
+                <button type="button" onclick="openItemCustomizeDrawer(${item.id})" class="px-2.5 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-bold flex items-center gap-1 active:scale-95 transition flex-shrink-0" title="Customize portion, add-ons & notes">
+                  <iconify-icon icon="solar:tuning-square-2-bold" class="text-sm"></iconify-icon>
+                  <span class="text-[11px]">Options</span>
+                </button>
+              </div>
+
+              <!-- Quick Portion Selectors -->
+              <div class="grid grid-cols-2 gap-2 pt-0.5">
+                <!-- Half Button/Stepper -->
+                <div>
+                  ${halfInCart === 0 ? `
+                    <button type="button" onclick="quickAddPortion(${item.id}, 'half')" class="w-full py-1.5 px-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-bold flex items-center justify-between active:scale-95 transition">
+                      <span class="text-[10px] uppercase font-extrabold text-sky-400">Half</span>
+                      <span class="font-mono text-xs">RM ${Number(item.price_half).toFixed(2)}</span>
+                      <iconify-icon icon="solar:add-circle-linear" class="text-sm"></iconify-icon>
+                    </button>
+                  ` : `
+                    <div class="w-full flex items-center justify-between bg-[#1B1E28] border border-sky-500/40 rounded-xl px-2 py-0.5">
+                      <span class="text-[10px] uppercase font-black text-sky-400">Half</span>
+                      <div class="flex items-center">
+                        <button type="button" onclick="adjustPortionQty(${item.id}, 'half', -1)" class="w-6 h-6 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-xs active:scale-90">-</button>
+                        <span class="w-5 text-center text-xs font-bold font-mono text-white">${halfInCart}</span>
+                        <button type="button" onclick="adjustPortionQty(${item.id}, 'half', 1)" class="w-6 h-6 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-xs active:scale-90">+</button>
+                      </div>
+                    </div>
+                  `}
+                </div>
+
+                <!-- Full Button/Stepper -->
+                <div>
+                  ${fullInCart === 0 ? `
+                    <button type="button" onclick="quickAddPortion(${item.id}, 'full')" class="w-full py-1.5 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-between active:scale-95 transition">
+                      <span class="text-[10px] uppercase font-extrabold text-emerald-400">Full</span>
+                      <span class="font-mono text-xs">RM ${Number(item.price_full).toFixed(2)}</span>
+                      <iconify-icon icon="solar:add-circle-linear" class="text-sm"></iconify-icon>
+                    </button>
+                  ` : `
+                    <div class="w-full flex items-center justify-between bg-[#1B1E28] border border-emerald-500/40 rounded-xl px-2 py-0.5">
+                      <span class="text-[10px] uppercase font-black text-emerald-400">Full</span>
+                      <div class="flex items-center">
+                        <button type="button" onclick="adjustPortionQty(${item.id}, 'full', -1)" class="w-6 h-6 flex items-center justify-center text-emerald-400 hover:bg-white/5 font-bold text-xs active:scale-90">-</button>
+                        <span class="w-5 text-center text-xs font-bold font-mono text-white">${fullInCart}</span>
+                        <button type="button" onclick="adjustPortionQty(${item.id}, 'full', 1)" class="w-6 h-6 flex items-center justify-center text-emerald-400 hover:bg-white/5 font-bold text-xs active:scale-90">+</button>
+                      </div>
+                    </div>
+                  `}
+                </div>
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        } else {
+          // Single portion item
+          const price = item.price_full || item.price_half || 0;
+          const qtyInCart = AppState.cart.filter(c => c.id === item.id && !c.open_item).reduce((s, c) => s + c.qty, 0);
+
+          return `
+            <div class="bg-surface-card border border-border-subtle hover:border-sky-500/30 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs transition">
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-white leading-tight truncate">${item.name}</div>
+                <div class="text-[11px] text-neutral-400 font-mono mt-0.5">RM ${Number(price).toFixed(2)}</div>
+                ${item.category ? `<span class="text-[9px] uppercase font-semibold text-neutral-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded mt-1 inline-block">${item.category}</span>` : ''}
+              </div>
+
+              <div class="flex items-center gap-1.5 flex-shrink-0">
+                ${qtyInCart === 0 ? `
+                  <button type="button" onclick="addItemToCart(${item.id})" class="bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 active:scale-95 transition">
+                    <iconify-icon icon="solar:add-circle-linear" class="text-sm"></iconify-icon>
+                    <span>Add</span>
+                  </button>
+                ` : `
+                  <div class="flex items-center bg-[#1B1E28] border border-sky-500/40 rounded-xl overflow-hidden shadow-xs">
+                    <button type="button" onclick="adjustItemQtyInCart(${item.id}, -1)" class="w-7 h-7 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-sm active:scale-90">-</button>
+                    <span class="w-6 text-center text-xs font-bold font-mono text-white">${qtyInCart}</span>
+                    <button type="button" onclick="adjustItemQtyInCart(${item.id}, 1)" class="w-7 h-7 flex items-center justify-center text-sky-400 hover:bg-white/5 font-bold text-sm active:scale-90">+</button>
+                  </div>
+                `}
+                <button type="button" onclick="openItemCustomizeDrawer(${item.id})" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 active:scale-95 transition" title="Add-ons & Notes">
+                  <iconify-icon icon="solar:tuning-square-2-bold" class="text-sky-400 text-sm"></iconify-icon>
+                </button>
+              </div>
+            </div>
+          `;
+        }
       }).join('');
     }
 
@@ -1116,21 +1325,72 @@
       renderMobileMenuItems();
     }
 
-    // ── Cart Quantity Stepper Operations ──
-    function addItemToCart(itemId) {
+    // ── Quick Portion Add & Adjust ──
+    function quickAddPortion(itemId, portion) {
       const item = AppState.menuItems.find(i => i.id === itemId);
       if (!item) return;
 
-      const existing = AppState.cart.find(c => c.id === itemId && !c.open_item);
+      const price = portion === 'half' ? Number(item.price_half || 0) : Number(item.price_full || 0);
+
+      // Check if identical item (same id, same portion, no addons, empty notes) already in cart
+      const existing = AppState.cart.find(c => c.id === itemId && c.size === portion && (!c.addons || c.addons.length === 0) && !c.notes && !c.open_item);
       if (existing) {
         existing.qty += 1;
       } else {
         AppState.cart.push({
           id: item.id,
           name: item.name,
-          price: Number(item.price_full || item.price_half || 0),
+          size: portion,
+          price: price,
           qty: 1,
-          size: 'full',
+          addons: [],
+          notes: '',
+          open_item: false
+        });
+      }
+
+      playChime('add');
+      renderMobileMenuItems();
+      updateStickyCartBar();
+    }
+
+    function adjustPortionQty(itemId, portion, delta) {
+      const idx = AppState.cart.findIndex(c => c.id === itemId && c.size === portion && (!c.addons || c.addons.length === 0) && !c.notes && !c.open_item);
+      if (idx === -1) {
+        if (delta > 0) quickAddPortion(itemId, portion);
+        return;
+      }
+
+      AppState.cart[idx].qty += delta;
+      if (AppState.cart[idx].qty <= 0) {
+        AppState.cart.splice(idx, 1);
+      }
+
+      playChime('add');
+      renderMobileMenuItems();
+      updateStickyCartBar();
+      renderCartDrawerItems();
+    }
+
+    // ── Single Portion Add & Stepper Operations ──
+    function addItemToCart(itemId) {
+      const item = AppState.menuItems.find(i => i.id === itemId);
+      if (!item) return;
+
+      const portion = (item.price_half && !item.price_full) ? 'half' : 'full';
+      const price = Number(item.price_full || item.price_half || 0);
+
+      const existing = AppState.cart.find(c => c.id === itemId && (!c.addons || c.addons.length === 0) && !c.notes && !c.open_item);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        AppState.cart.push({
+          id: item.id,
+          name: item.name,
+          price: price,
+          qty: 1,
+          size: portion,
+          addons: [],
           notes: '',
           open_item: false
         });
@@ -1141,7 +1401,7 @@
     }
 
     function adjustItemQtyInCart(itemId, delta) {
-      const idx = AppState.cart.findIndex(c => c.id === itemId && !c.open_item);
+      const idx = AppState.cart.findIndex(c => c.id === itemId && (!c.addons || c.addons.length === 0) && !c.notes && !c.open_item);
       if (idx === -1) return;
 
       AppState.cart[idx].qty += delta;
@@ -1154,6 +1414,219 @@
       renderCartDrawerItems();
     }
 
+    // ── Item Customization Drawer Handlers (Portions & Addons) ──
+    function openItemCustomizeDrawer(itemId, preferredPortion = null) {
+      const item = AppState.menuItems.find(i => i.id === itemId);
+      if (!item) return;
+
+      AppState.customizingItem = item;
+      AppState.customQty = 1;
+      AppState.customAddons = [];
+      AppState.customNotes = '';
+
+      const hasHalf = item.price_half != null && Number(item.price_half) > 0;
+      const hasFull = item.price_full != null && Number(item.price_full) > 0;
+
+      if (preferredPortion) {
+        AppState.customPortion = preferredPortion;
+      } else if (hasHalf && hasFull) {
+        AppState.customPortion = 'full';
+      } else if (hasHalf) {
+        AppState.customPortion = 'half';
+      } else {
+        AppState.customPortion = 'full';
+      }
+
+      // Populate Header
+      document.getElementById('modal-item-category').textContent = item.category || 'Menu Item';
+      document.getElementById('modal-item-name').textContent = item.name;
+      document.getElementById('modal-item-desc').textContent = item.description || '';
+      document.getElementById('modal-item-notes').value = '';
+      document.getElementById('modal-item-qty').textContent = '1';
+
+      // Render Portion Options
+      renderCustomPortionSection();
+
+      // Render Add-ons List
+      renderCustomAddonsList();
+
+      // Update Total Price
+      updateCustomDrawerPrice();
+
+      // Show Drawer
+      document.getElementById('item-customize-backdrop').classList.remove('hidden');
+      document.getElementById('item-customize-drawer').classList.remove('hidden');
+    }
+
+    function closeItemCustomizeDrawer() {
+      document.getElementById('item-customize-backdrop').classList.add('hidden');
+      document.getElementById('item-customize-drawer').classList.add('hidden');
+      AppState.customizingItem = null;
+    }
+
+    function renderCustomPortionSection() {
+      const item = AppState.customizingItem;
+      const container = document.getElementById('modal-portion-options');
+      const section = document.getElementById('modal-portion-section');
+      if (!item || !container) return;
+
+      const hasHalf = item.price_half != null && Number(item.price_half) > 0;
+      const hasFull = item.price_full != null && Number(item.price_full) > 0;
+
+      if (hasHalf && hasFull) {
+        section.classList.remove('hidden');
+        container.className = 'grid grid-cols-2 gap-2';
+        container.innerHTML = `
+          <button type="button" onclick="setCustomPortion('half')" class="p-3 rounded-2xl border text-left flex flex-col justify-between transition ${AppState.customPortion === 'half' ? 'bg-sky-500/20 border-sky-400 text-white shadow-sm ring-1 ring-sky-400' : 'bg-surface-card border-border-subtle text-neutral-300 hover:border-white/20'}">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider">Half Portion</span>
+              ${AppState.customPortion === 'half' ? '<iconify-icon icon="solar:check-circle-bold" class="text-sky-400 text-base"></iconify-icon>' : ''}
+            </div>
+            <div class="text-sm font-black font-mono mt-1 ${AppState.customPortion === 'half' ? 'text-sky-300' : 'text-neutral-400'}">RM ${Number(item.price_half).toFixed(2)}</div>
+          </button>
+
+          <button type="button" onclick="setCustomPortion('full')" class="p-3 rounded-2xl border text-left flex flex-col justify-between transition ${AppState.customPortion === 'full' ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-sm ring-1 ring-emerald-400' : 'bg-surface-card border-border-subtle text-neutral-300 hover:border-white/20'}">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider">Full Portion</span>
+              ${AppState.customPortion === 'full' ? '<iconify-icon icon="solar:check-circle-bold" class="text-emerald-400 text-base"></iconify-icon>' : ''}
+            </div>
+            <div class="text-sm font-black font-mono mt-1 ${AppState.customPortion === 'full' ? 'text-emerald-300' : 'text-neutral-400'}">RM ${Number(item.price_full).toFixed(2)}</div>
+          </button>
+        `;
+      } else {
+        // Single portion
+        const price = item.price_full || item.price_half || 0;
+        section.classList.remove('hidden');
+        container.className = 'grid grid-cols-1';
+        container.innerHTML = `
+          <div class="p-3 rounded-2xl border bg-surface-card border-sky-500/30 text-white flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <iconify-icon icon="solar:check-circle-bold" class="text-sky-400 text-lg"></iconify-icon>
+              <span class="text-xs font-bold">Standard Portion</span>
+            </div>
+            <span class="text-sm font-black font-mono text-sky-300">RM ${Number(price).toFixed(2)}</span>
+          </div>
+        `;
+      }
+    }
+
+    function setCustomPortion(portion) {
+      AppState.customPortion = portion;
+      renderCustomPortionSection();
+      updateCustomDrawerPrice();
+    }
+
+    function renderCustomAddonsList() {
+      const container = document.getElementById('modal-addons-list');
+      const countEl = document.getElementById('modal-addons-selected-count');
+      if (!container) return;
+
+      if (!AppState.addons || AppState.addons.length === 0) {
+        container.innerHTML = `<div class="col-span-2 p-3 text-center text-neutral-500 text-xs bg-surface-card rounded-xl">No extra add-ons configured</div>`;
+        if (countEl) countEl.textContent = '0 selected';
+        return;
+      }
+
+      if (countEl) {
+        countEl.textContent = `${AppState.customAddons.length} selected`;
+      }
+
+      container.innerHTML = AppState.addons.map(addon => {
+        const isSelected = AppState.customAddons.some(a => a.name === addon.name);
+        return `
+          <button type="button" onclick="toggleCustomAddon('${addon.name.replace(/'/g, "\\'")}', ${addon.price})" class="p-2.5 rounded-xl border text-left flex items-center justify-between transition active:scale-95 ${isSelected ? 'bg-sky-500/20 border-sky-400 text-white shadow-xs' : 'bg-surface-card border-border-subtle text-neutral-300 hover:border-white/20'}">
+            <div class="min-w-0 pr-1">
+              <div class="text-xs font-bold truncate leading-tight">${addon.name}</div>
+              <div class="text-[10px] font-mono mt-0.5 ${isSelected ? 'text-sky-300 font-semibold' : 'text-neutral-400'}">+RM ${Number(addon.price).toFixed(2)}</div>
+            </div>
+            <div class="w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-sky-500 text-white' : 'border border-neutral-600'}">
+              ${isSelected ? '<iconify-icon icon="solar:check-read-linear" class="text-xs"></iconify-icon>' : ''}
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function toggleCustomAddon(addonName, addonPrice) {
+      const idx = AppState.customAddons.findIndex(a => a.name === addonName);
+      if (idx > -1) {
+        AppState.customAddons.splice(idx, 1);
+      } else {
+        AppState.customAddons.push({ name: addonName, price: Number(addonPrice) });
+      }
+      renderCustomAddonsList();
+      updateCustomDrawerPrice();
+    }
+
+    function appendQuickNote(txt) {
+      const input = document.getElementById('modal-item-notes');
+      if (!input) return;
+      const current = input.value.trim();
+      if (!current) {
+        input.value = txt;
+      } else if (!current.includes(txt)) {
+        input.value = current + ', ' + txt;
+      }
+      input.focus();
+    }
+
+    function adjustCustomQty(delta) {
+      AppState.customQty = Math.max(1, AppState.customQty + delta);
+      document.getElementById('modal-item-qty').textContent = AppState.customQty;
+      updateCustomDrawerPrice();
+    }
+
+    function updateCustomDrawerPrice() {
+      const item = AppState.customizingItem;
+      if (!item) return;
+
+      let basePrice = 0;
+      if (AppState.customPortion === 'half') {
+        basePrice = Number(item.price_half || item.price_full || 0);
+      } else {
+        basePrice = Number(item.price_full || item.price_half || 0);
+      }
+
+      const addonsTotal = AppState.customAddons.reduce((sum, a) => sum + Number(a.price || 0), 0);
+      const total = (basePrice + addonsTotal) * AppState.customQty;
+
+      const priceEl = document.getElementById('modal-item-total-price');
+      if (priceEl) {
+        priceEl.textContent = `RM ${total.toFixed(2)}`;
+      }
+    }
+
+    function confirmAddItemWithCustomization() {
+      const item = AppState.customizingItem;
+      if (!item) return;
+
+      let basePrice = 0;
+      if (AppState.customPortion === 'half') {
+        basePrice = Number(item.price_half || item.price_full || 0);
+      } else {
+        basePrice = Number(item.price_full || item.price_half || 0);
+      }
+
+      const notes = (document.getElementById('modal-item-notes')?.value || '').trim();
+
+      AppState.cart.push({
+        id: item.id,
+        name: item.name,
+        size: AppState.customPortion,
+        price: basePrice,
+        qty: AppState.customQty,
+        addons: [...AppState.customAddons],
+        notes: notes,
+        open_item: false
+      });
+
+      playChime('add');
+      showToast(`Added ${item.name} (${AppState.customPortion.toUpperCase()}) to order`, 'success');
+      closeItemCustomizeDrawer();
+      renderMobileMenuItems();
+      updateStickyCartBar();
+    }
+
     // ── Sticky Bottom Cart Bar Update ──
     function updateStickyCartBar() {
       const bar = document.getElementById('sticky-cart-bar');
@@ -1161,7 +1634,10 @@
       const totalEl = document.getElementById('bar-total-amount');
 
       const totalItems = AppState.cart.reduce((s, c) => s + c.qty, 0);
-      const subtotal = AppState.cart.reduce((s, c) => s + (c.price * c.qty), 0);
+      const subtotal = AppState.cart.reduce((s, c) => {
+        const addonSum = (c.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        return s + ((Number(c.price) + addonSum) * c.qty);
+      }, 0);
 
       if (totalItems > 0 && AppState.currentView === 'view-menu') {
         countEl.textContent = totalItems;
@@ -1196,28 +1672,57 @@
       }
 
       container.innerHTML = AppState.cart.map((line, idx) => {
+        const addonSum = (line.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        const itemUnitPrice = Number(line.price) + addonSum;
+        const lineTotal = itemUnitPrice * line.qty;
+
         return `
-          <div class="bg-surface-card border border-border-subtle rounded-xl p-3 space-y-2">
-            <div class="flex items-start justify-between">
-              <div>
-                <div class="text-xs font-bold text-white flex items-center gap-1.5">
-                  <span>${line.name}</span>
-                  ${line.open_item ? `<span class="bg-accent/20 text-accent text-[9px] px-1 rounded font-bold">Custom</span>` : ''}
+          <div class="bg-surface-card border border-border-subtle rounded-2xl p-3.5 space-y-2 shadow-xs">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
+                  <span class="truncate">${line.name}</span>
+                  ${line.size ? `
+                    <span class="text-[9px] uppercase font-black px-1.5 py-0.2 rounded ${line.size === 'half' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}">
+                      ${line.size}
+                    </span>
+                  ` : ''}
+                  ${line.open_item ? `<span class="bg-accent/20 text-accent border border-accent/30 text-[9px] px-1.5 py-0.2 rounded font-bold">Custom</span>` : ''}
                 </div>
-                <div class="text-[11px] text-neutral-400 font-mono">RM ${Number(line.price).toFixed(2)} each</div>
+
+                <div class="text-[11px] text-neutral-400 font-mono mt-0.5">
+                  RM ${itemUnitPrice.toFixed(2)} each
+                  ${addonSum > 0 ? `<span class="text-sky-400 text-[10px]">(base RM ${Number(line.price).toFixed(2)} + extras RM ${addonSum.toFixed(2)})</span>` : ''}
+                </div>
+
+                ${line.addons && line.addons.length > 0 ? `
+                  <div class="flex flex-wrap gap-1 mt-1.5">
+                    ${line.addons.map(a => `
+                      <span class="bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                        <span>+ ${a.name}</span>
+                        ${Number(a.price) > 0 ? `<b class="font-mono">(RM ${Number(a.price).toFixed(2)})</b>` : ''}
+                      </span>
+                    `).join('')}
+                  </div>
+                ` : ''}
               </div>
-              <button onclick="removeCartLine(${idx})" class="text-neutral-500 hover:text-red-400 text-base">
-                <iconify-icon icon="solar:trash-bin-2-linear"></iconify-icon>
-              </button>
+
+              <div class="text-right flex-shrink-0">
+                <div class="font-mono font-bold text-emerald-400 text-xs">RM ${lineTotal.toFixed(2)}</div>
+                <button type="button" onclick="removeCartLine(${idx})" class="text-neutral-500 hover:text-red-400 text-base mt-1 active:scale-90 transition" title="Remove item">
+                  <iconify-icon icon="solar:trash-bin-2-linear"></iconify-icon>
+                </button>
+              </div>
             </div>
 
-            <div class="flex items-center justify-between pt-1">
-              <input type="text" value="${line.notes || ''}" onchange="updateCartLineNotes(${idx}, this.value)" placeholder="Item note (optional)..." class="flex-1 mr-3 bg-[#0E1017] border border-border-subtle rounded-lg px-2 py-1 text-[11px] text-white placeholder-neutral-500 outline-none">
+            <!-- Notes & Stepper Row -->
+            <div class="flex items-center justify-between pt-1 gap-2">
+              <input type="text" value="${line.notes || ''}" onchange="updateCartLineNotes(${idx}, this.value)" placeholder="Item instructions (optional)..." class="flex-1 min-w-0 bg-[#0E1017] border border-border-subtle rounded-xl px-2.5 py-1 text-[11px] text-white placeholder-neutral-500 outline-none focus:border-sky-500 transition">
 
-              <div class="flex items-center bg-[#1B1E28] border border-border-subtle rounded-lg overflow-hidden flex-shrink-0">
-                <button onclick="adjustCartLineQty(${idx}, -1)" class="w-6 h-6 flex items-center justify-center text-neutral-300 font-bold text-xs">-</button>
+              <div class="flex items-center bg-[#1B1E28] border border-border-subtle rounded-xl overflow-hidden flex-shrink-0 shadow-xs">
+                <button type="button" onclick="adjustCartLineQty(${idx}, -1)" class="w-7 h-7 flex items-center justify-center text-neutral-300 hover:bg-white/5 font-bold text-xs active:scale-90">-</button>
                 <span class="w-6 text-center text-xs font-bold font-mono text-white">${line.qty}</span>
-                <button onclick="adjustCartLineQty(${idx}, 1)" class="w-6 h-6 flex items-center justify-center text-neutral-300 font-bold text-xs">+</button>
+                <button type="button" onclick="adjustCartLineQty(${idx}, 1)" class="w-7 h-7 flex items-center justify-center text-neutral-300 hover:bg-white/5 font-bold text-xs active:scale-90">+</button>
               </div>
             </div>
           </div>
@@ -1225,7 +1730,10 @@
       }).join('');
 
       // Update totals
-      const subtotal = AppState.cart.reduce((s, c) => s + (c.price * c.qty), 0);
+      const subtotal = AppState.cart.reduce((s, c) => {
+        const addonSum = (c.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        return s + ((Number(c.price) + addonSum) * c.qty);
+      }, 0);
       const tax = Math.round(subtotal * 0.06 * 100) / 100;
       const grandTotal = Math.round((subtotal + tax) * 100) / 100;
 
@@ -1264,27 +1772,61 @@
       }
 
       const totalItems = AppState.cart.reduce((s, c) => s + c.qty, 0);
-      const subtotal = AppState.cart.reduce((s, c) => s + (c.price * c.qty), 0);
+      const subtotal = AppState.cart.reduce((s, c) => {
+        const addonSum = (c.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        return s + ((Number(c.price) + addonSum) * c.qty);
+      }, 0);
 
       const titleEl = document.getElementById('confirm-modal-title');
       const descEl = document.getElementById('confirm-modal-desc');
       const previewEl = document.getElementById('confirm-modal-preview');
 
+      const itemsPreviewHtml = AppState.cart.map(c => {
+        const addonSum = (c.addons || []).reduce((a, x) => a + Number(x.price || 0), 0);
+        const lTot = (Number(c.price) + addonSum) * c.qty;
+        return `
+          <div class="py-1 border-b border-white/5 last:border-0">
+            <div class="flex justify-between text-xs">
+              <span class="text-white font-medium">${c.qty}× ${c.name} ${c.size ? `(${c.size.toUpperCase()})` : ''}</span>
+              <span class="font-mono text-emerald-400 font-bold">RM ${lTot.toFixed(2)}</span>
+            </div>
+            ${c.addons && c.addons.length ? `<div class="text-[10px] text-sky-400 pl-2">+ ${c.addons.map(a => a.name).join(', ')}</div>` : ''}
+            ${c.notes ? `<div class="text-[10px] text-neutral-400 italic pl-2">Note: ${c.notes}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+
       if (AppState.mode === 'new_order') {
         titleEl.textContent = `Confirm New Order: Table ${AppState.selectedTable}`;
         descEl.textContent = 'This will create a new dine-in ticket and notify POS immediately.';
         previewEl.innerHTML = `
-          <div class="text-neutral-400">Table: <b class="text-white">${AppState.selectedTable}</b></div>
-          <div class="text-neutral-400">Total Items: <b class="text-white">${totalItems}</b></div>
-          <div class="text-neutral-400">Est. Total: <b class="text-emerald-400 font-mono">RM ${subtotal.toFixed(2)}</b></div>
+          <div class="flex justify-between text-neutral-400 pb-1 border-b border-border-subtle">
+            <span>Table: <b class="text-white">${AppState.selectedTable}</b></span>
+            <span>Total Items: <b class="text-white">${totalItems}</b></span>
+          </div>
+          <div class="max-h-36 overflow-y-auto custom-scroll py-1">
+            ${itemsPreviewHtml}
+          </div>
+          <div class="flex justify-between font-bold pt-1 border-t border-border-subtle">
+            <span class="text-neutral-300">Est. Total:</span>
+            <span class="text-emerald-400 font-mono">RM ${subtotal.toFixed(2)}</span>
+          </div>
         `;
       } else {
         titleEl.textContent = `Add Items to Order #${AppState.selectedOrder.order_no}`;
         descEl.textContent = `Table ${AppState.selectedTable} • Items will be appended to active bill.`;
         previewEl.innerHTML = `
-          <div class="text-neutral-400">Table: <b class="text-white">${AppState.selectedTable}</b> (Order #${AppState.selectedOrder.order_no})</div>
-          <div class="text-neutral-400">New Items to Add: <b class="text-white">${totalItems}</b></div>
-          <div class="text-neutral-400">Added Amount: <b class="text-emerald-400 font-mono">RM ${subtotal.toFixed(2)}</b></div>
+          <div class="flex justify-between text-neutral-400 pb-1 border-b border-border-subtle">
+            <span>Table: <b class="text-white">${AppState.selectedTable}</b> (#${AppState.selectedOrder.order_no})</span>
+            <span>New Items: <b class="text-white">${totalItems}</b></span>
+          </div>
+          <div class="max-h-36 overflow-y-auto custom-scroll py-1">
+            ${itemsPreviewHtml}
+          </div>
+          <div class="flex justify-between font-bold pt-1 border-t border-border-subtle">
+            <span class="text-neutral-300">Added Amount:</span>
+            <span class="text-emerald-400 font-mono">RM ${subtotal.toFixed(2)}</span>
+          </div>
         `;
       }
 

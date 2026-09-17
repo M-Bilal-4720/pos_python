@@ -43,17 +43,30 @@
       -webkit-tap-highlight-color: transparent;
       box-sizing: border-box;
     }
-    body {
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
       background-color: #0B0C10;
       color: #F1F5F9;
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 100vh;
+      min-height: 100dvh;
       user-select: none;
       -webkit-user-select: none;
-      min-height: 100dvh;
     }
     .safe-padding {
-      padding-top: max(env(safe-area-inset-top, 24px), 24px);
-      padding-bottom: max(env(safe-area-inset-bottom, 24px), 24px);
+      padding-top: max(env(safe-area-inset-top, 20px), 20px);
+      padding-bottom: max(env(safe-area-inset-bottom, 20px), 20px);
+    }
+    input {
+      font-family: inherit;
     }
   </style>
 </head>
@@ -83,11 +96,12 @@
     {% endif %}
 
     <form method="POST" action="/water/login" class="space-y-4">
+      <input type="hidden" name="next" value="{{ next_url or '' }}">
       <div>
         <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-1.5">Username</label>
         <div class="relative">
           <iconify-icon icon="solar:user-bold" class="absolute left-3.5 top-3.5 text-neutral-500 text-lg"></iconify-icon>
-          <input type="text" name="username" required autofocus autocomplete="username" placeholder="Enter username (e.g. water1)" class="w-full bg-card-bg border border-border-subtle focus:border-sky-500 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-neutral-500 outline-none transition">
+          <input type="text" id="login-username" name="username" required autofocus autocomplete="username" placeholder="Enter username (e.g. water1)" class="w-full bg-card-bg border border-border-subtle focus:border-sky-500 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-neutral-500 outline-none transition">
         </div>
       </div>
 
@@ -95,9 +109,15 @@
         <label class="block text-xs font-bold text-neutral-300 uppercase tracking-wide mb-1.5">Password</label>
         <div class="relative">
           <iconify-icon icon="solar:lock-bold" class="absolute left-3.5 top-3.5 text-neutral-500 text-lg"></iconify-icon>
-          <input type="password" name="password" required autocomplete="current-password" placeholder="••••••••" class="w-full bg-card-bg border border-border-subtle focus:border-sky-500 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-neutral-500 outline-none transition">
+          <input type="password" id="login-password" name="password" required autocomplete="current-password" placeholder="••••••••" class="w-full bg-card-bg border border-border-subtle focus:border-sky-500 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-neutral-500 outline-none transition">
         </div>
       </div>
+
+      <!-- Quick 1-Tap Login Credential Filler -->
+      <button type="button" onclick="quickFillWaterStaff()" class="w-full py-2.5 px-3 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-semibold flex items-center justify-center gap-1.5 active:scale-95 transition">
+        <iconify-icon icon="solar:user-check-bold" class="text-sm"></iconify-icon>
+        <span>Auto-Fill: Staff Account (water1)</span>
+      </button>
 
       <button type="submit" class="w-full bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-white font-extrabold py-4 px-4 rounded-2xl text-sm flex items-center justify-center gap-2 shadow-xl shadow-sky-950/50 active:scale-[0.98] transition mt-2">
         <iconify-icon icon="solar:login-2-bold" class="text-lg"></iconify-icon>
@@ -105,6 +125,13 @@
       </button>
     </form>
   </div>
+
+  <script>
+    function quickFillWaterStaff() {
+      document.getElementById('login-username').value = 'water1';
+      document.getElementById('login-password').value = 'water123';
+    }
+  </script>
 
   <!-- FOOTER & APP DOWNLOAD LINK -->
   <div class="pb-2 text-center space-y-3">

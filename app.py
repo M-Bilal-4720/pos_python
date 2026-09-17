@@ -59,7 +59,7 @@ app.config.update(
     SESSION_COOKIE_DOMAIN=None,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "true").lower() == "true",
+    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true",
     PERMANENT_SESSION_LIFETIME=datetime.timedelta(hours=12),
     COMPRESS_MIMETYPES=["text/html","text/css","application/json",
                         "application/javascript","image/svg+xml"],
@@ -1110,11 +1110,15 @@ def water_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get("staff_id"):
-            return redirect(url_for("staff_login", next=request.path))
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Water authentication required"}), 401
+            return redirect(url_for("water_login", next=request.path))
         user = db.session.get(StaffUser, session["staff_id"])
         if not user or not user.active:
             session.clear()
-            return redirect(url_for("staff_login"))
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Water authentication required"}), 401
+            return redirect(url_for("water_login"))
         if not user.has_water_permission():
             if request.path.startswith("/api/"):
                 return jsonify({"error": "Water permission required"}), 403
@@ -2168,10 +2172,14 @@ def get_water_app_config():
 
 @app.route("/water/login", methods=["GET", "POST"])
 def water_login():
+    next_url = request.args.get("next") or request.form.get("next") or "/water"
+    if not next_url.startswith("/") or next_url.startswith("//"):
+        next_url = "/water"
+
     if session.get("staff_id"):
         user = db.session.get(StaffUser, session["staff_id"])
         if user and (user.role == "water" or user.has_water_permission()):
-            return redirect("/water")
+            return redirect(next_url)
 
     ip = get_real_ip()
     error = ""
@@ -2179,7 +2187,7 @@ def water_login():
 
     if is_rate_limited(ip):
         error = "Too many attempts. Try again in 15 minutes."
-        return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error)
+        return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error, next_url=next_url)
 
     if request.method == "POST":
         username = request.form.get("username", "").strip().lower()
@@ -2188,7 +2196,7 @@ def water_login():
         if user and user.check_password(password):
             if user.role != "water" and not user.has_water_permission():
                 error = "Access denied: Account does not have Water Panel permissions."
-                return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error)
+                return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error, next_url=next_url)
 
             record_success(ip)
             log_login(username, True, "/water")
@@ -2198,13 +2206,13 @@ def water_login():
             session["staff_role"] = user.role
             user.last_login = datetime.datetime.utcnow()
             db.session.commit()
-            return redirect("/water")
+            return redirect(next_url)
         else:
             record_failed(ip)
             log_login(username, False, "/water")
             error = "Invalid username or password."
 
-    return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error)
+    return render_template("water_login.html", restaurant=get_restaurant_info(), app_config=app_config, error=error, next_url=next_url)
 
 @app.route("/water/manifest.json")
 def water_manifest():
