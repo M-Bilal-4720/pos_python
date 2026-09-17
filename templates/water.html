@@ -48,43 +48,32 @@
       -webkit-tap-highlight-color: transparent;
       box-sizing: border-box;
     }
-    html, body {
-      height: 100%;
-      width: 100%;
+    html {
+      min-height: 100%;
+      background-color: #0B0C10;
+    }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
       margin: 0;
       padding: 0;
       background-color: #0B0C10;
       color: #F1F5F9;
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
       -webkit-text-size-adjust: 100%;
-    }
-    body {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       position: relative;
-    }
-    main {
-      flex: 1 1 0% !important;
-      min-height: 0 !important;
-      overflow-y: auto !important;
-      -webkit-overflow-scrolling: touch !important;
-      touch-action: pan-y !important;
-      overscroll-behavior-y: contain;
     }
     /* Touch momentum scrolling for mobile */
     .scrollable {
       overflow-y: auto !important;
       -webkit-overflow-scrolling: touch !important;
-      touch-action: pan-y !important;
-      overscroll-behavior-y: contain;
     }
     .scrollable-x {
       overflow-x: auto !important;
       -webkit-overflow-scrolling: touch !important;
-      touch-action: pan-x !important;
     }
     /* Thin, visible modern scrollbar so staff can see scrollable content */
     .custom-scroll {
@@ -145,7 +134,7 @@
     }
   </style>
 </head>
-<body class="flex flex-col h-screen w-full max-w-md mx-auto relative bg-dark-bg text-slate-100 overflow-hidden shadow-2xl border-x border-border-subtle">
+<body class="w-full max-w-md mx-auto relative bg-dark-bg text-slate-100 shadow-2xl border-x border-border-subtle">
 
   <!-- Network Offline Warning Banner -->
   <div id="offline-banner" class="hidden bg-amber-500 text-black text-xs font-black py-1 px-4 text-center tracking-wide flex items-center justify-center gap-1.5 z-50 flex-shrink-0 shadow-md">
@@ -156,7 +145,7 @@
   <!-- ════════════════════════════════════════════════════════════
        1. TOP MOBILE APP BAR
        ════════════════════════════════════════════════════════════ -->
-  <header class="top-bar-safe bg-[#10121A] border-b border-border-subtle px-4 py-3 flex items-center justify-between flex-shrink-0 z-30">
+  <header class="sticky top-0 z-30 top-bar-safe bg-[#10121A]/95 backdrop-blur-md border-b border-border-subtle px-4 py-3 flex items-center justify-between shadow-md flex-shrink-0">
     <div class="flex items-center gap-2.5">
       <div class="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 font-bold shadow-sm">
         <iconify-icon icon="solar:water-drop-bold" class="text-xl"></iconify-icon>
@@ -196,7 +185,7 @@
   <!-- ════════════════════════════════════════════════════════════
        2. DYNAMIC APP VIEWS CONTAINER
        ════════════════════════════════════════════════════════════ -->
-  <main class="flex-1 min-h-0 overflow-y-auto scrollable custom-scroll relative pb-32">
+  <main class="w-full relative pb-36">
 
     <!-- ────────────────────────────────────────────────────────────
          VIEW 1: HOME DASHBOARD
@@ -982,7 +971,9 @@
       if (viewId === 'view-profile') document.getElementById('nav-btn-profile')?.classList.replace('text-neutral-400', 'text-sky-400');
 
       // Scroll top
-      document.querySelector('main').scrollTop = 0;
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
 
       // Load data on view activation
       if (viewId === 'view-tables' || viewId === 'view-home') loadTablesData();
