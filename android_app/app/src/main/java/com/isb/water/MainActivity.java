@@ -37,7 +37,16 @@ public class MainActivity extends Activity {
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String defaultUrl = getString(R.string.default_server_url);
-        String serverUrl = prefs.getString(KEY_SERVER_URL, defaultUrl);
+        String lastBuiltUrl = prefs.getString("last_built_url", "");
+        String serverUrl;
+        if (!defaultUrl.equals(lastBuiltUrl) || defaultUrl.contains("192.168.50.53")) {
+            serverUrl = defaultUrl;
+            prefs.edit().putString(KEY_SERVER_URL, defaultUrl)
+                        .putString("last_built_url", defaultUrl)
+                        .apply();
+        } else {
+            serverUrl = prefs.getString(KEY_SERVER_URL, defaultUrl);
+        }
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.parseColor("#0B0C10"));
@@ -69,7 +78,8 @@ public class MainActivity extends Activity {
         ws.setSupportZoom(false);
         ws.setBuiltInZoomControls(false);
         ws.setTextZoom(100);
-        ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+        webView.clearCache(true);
+        ws.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
@@ -97,6 +107,11 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return false;
+            }
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                CookieManager.getInstance().flush();
             }
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
@@ -160,6 +175,12 @@ public class MainActivity extends Activity {
                 }
             });
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        CookieManager.getInstance().flush();
     }
 
     @Override

@@ -39,7 +39,7 @@ def find_java():
 
     return shutil.which("javac") or "javac", shutil.which("java") or "java"
 
-def generate_signed_apk(output_path, app_name="ISB Water", version="1.0.0"):
+def generate_signed_apk(output_path, app_name="ISB Water", version="1.1.0"):
     root = os.path.abspath(os.path.dirname(__file__))
     tools_dir = os.path.join(root, "tools")
     app_dir = os.path.join(root, "android_app", "app", "src", "main")
@@ -97,7 +97,7 @@ def generate_signed_apk(output_path, app_name="ISB Water", version="1.0.0"):
     manifest_xml = f"""<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.isb.water"
-    android:versionCode="1"
+    android:versionCode="2"
     android:versionName="{version}">
 
     <uses-sdk
