@@ -5,22 +5,9 @@ generates Dalvik DEX bytecode with D8, and signs with v1/v2/v3 signature schemes
 Output: static/downloads/isb-water-panel.apk
 """
 import os
-import sys
 import shutil
 import subprocess
-import socket
 from PIL import Image
-
-def get_local_ip():
-    """Detect LAN IP of the host machine."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8', 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return '192.168.50.53'
 
 def find_java():
     """Find Java runtime and compiler executables."""
@@ -39,7 +26,7 @@ def find_java():
 
     return shutil.which("javac") or "javac", shutil.which("java") or "java"
 
-def generate_signed_apk(output_path, app_name="ISB Water", version="1.1.0"):
+def generate_signed_apk(output_path, app_name="ISB Water", version="1.1.1", version_code=3):
     root = os.path.abspath(os.path.dirname(__file__))
     tools_dir = os.path.join(root, "tools")
     app_dir = os.path.join(root, "android_app", "app", "src", "main")
@@ -56,8 +43,7 @@ def generate_signed_apk(output_path, app_name="ISB Water", version="1.1.0"):
     R8_JAR = os.path.join(tools_dir, "r8.jar")
     SIGNER_JAR = os.path.join(tools_dir, "uber-apk-signer.jar")
 
-    local_ip = get_local_ip()
-    default_url = f"http://{local_ip}:5000/water"
+    default_url = os.environ.get("SERVER_URL", "https://isbrestaurant.com/water")
     print(f"[APK BUILD] Target server: {default_url} | App Name: {app_name}")
 
     # 1. Prepare Launcher Icons from static/isb_qr_emblem.png
@@ -97,7 +83,7 @@ def generate_signed_apk(output_path, app_name="ISB Water", version="1.1.0"):
     manifest_xml = f"""<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.isb.water"
-    android:versionCode="2"
+    android:versionCode="{version_code}"
     android:versionName="{version}">
 
     <uses-sdk

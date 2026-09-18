@@ -2,5 +2,5 @@
 <resources>
     <string name="app_name">ISB Water</string>
     <string name="app_full_name">Islamabad Restaurant Water</string>
-    <string name="default_server_url">http://192.168.50.52:5000/water</string>
+    <string name="default_server_url">https://isbrestaurant.com/water</string>
 </resources>
